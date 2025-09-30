@@ -1,0 +1,56 @@
+type Query {
+  graph(app: String!): Graph
+  node(id: ID!): Node
+  apps: [App!]!
+}
+
+type App {
+  id: ID!
+  name: String!
+  description: String
+  createdAt: String!
+  updatedAt: String!
+}
+
+type Graph {
+  id: ID!
+  appName: String!
+  version: Int!
+  nodes: [Node!]!
+  edges: [Edge!]!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type Node {
+  id: ID!
+  type: NodeType!
+  name: String!
+  description: String
+  properties: String
+  createdAt: String!
+  updatedAt: String!
+}
+
+type Edge {
+  id: ID!
+  fromNodeId: ID!
+  toNodeId: ID!
+  type: EdgeType!
+  description: String
+  properties: String
+  createdAt: String!
+}
+
+enum NodeType {
+  SPEC
+  WORKFLOW
+  RESOURCE
+}
+
+enum EdgeType {
+  DEPENDS_ON
+  PROVISIONS
+  CREATES
+  BINDS_TO
+}
