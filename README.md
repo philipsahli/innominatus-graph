@@ -135,16 +135,18 @@ parentWorkflow, _ := g.GetParentWorkflow("provision-infra")
 
 ### 3. Persistence
 
-```go
-import (
-    "github.com/innominatus/innominatus-graph/pkg/storage"
-    "gorm.io/driver/postgres"
-    "gorm.io/gorm"
-)
+The SDK supports both **SQLite** (for development/testing) and **PostgreSQL** (for production).
 
-// Connect to PostgreSQL
-dsn := "host=localhost user=postgres password=secret dbname=idp_orchestrator port=5432"
-db, _ := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+#### Option A: SQLite (Simple, File-Based)
+
+```go
+import "github.com/innominatus/innominatus-graph/pkg/storage"
+
+// Connect to SQLite (creates file if not exists)
+db, _ := storage.NewSQLiteConnection("graph.db")
+
+// Auto-migrate schema
+storage.AutoMigrate(db)
 
 // Create repository
 repo := storage.NewRepository(db)
@@ -157,6 +159,57 @@ loadedGraph, err := repo.LoadGraph("my-app")
 
 // Update node state in database
 err = repo.UpdateNodeState("my-app", "provision-infra", graph.NodeStateSucceeded)
+```
+
+#### Option B: PostgreSQL (Production)
+
+```go
+import "github.com/innominatus/innominatus-graph/pkg/storage"
+
+// Connect to PostgreSQL
+db, _ := storage.NewPostgresConnection(
+    "localhost",           // host
+    "postgres",            // user
+    "secret",              // password
+    "idp_orchestrator",    // database
+    "disable",             // sslmode
+    5432,                  // port
+)
+
+// Create repository
+repo := storage.NewRepository(db)
+
+// Save graph
+err := repo.SaveGraph("my-app", g)
+
+// Load graph
+loadedGraph, err := repo.LoadGraph("my-app")
+
+// Update node state in database
+err = repo.UpdateNodeState("my-app", "provision-infra", graph.NodeStateSucceeded)
+```
+
+#### Universal Connection (Auto-Detect)
+
+```go
+import "github.com/innominatus/innominatus-graph/pkg/storage"
+
+// SQLite
+db, _ := storage.NewConnection(storage.Config{
+    Type:   storage.DatabaseTypeSQLite,
+    DBName: "graph.db",
+})
+
+// PostgreSQL
+db, _ := storage.NewConnection(storage.Config{
+    Type:     storage.DatabaseTypePostgres,
+    Host:     "localhost",
+    Port:     5432,
+    User:     "postgres",
+    Password: "secret",
+    DBName:   "idp_orchestrator",
+    SSLMode:  "disable",
+})
 ```
 
 ### 4. Graph Export
@@ -304,10 +357,15 @@ See [`examples/demo/main.go`](examples/demo/main.go) for a complete working exam
 Run the demo:
 ```bash
 cd examples/demo
+
+# SQLite mode (default - no setup required)
 go run main.go
 
-# With database persistence
+# PostgreSQL mode (requires PostgreSQL server)
 DB_PASSWORD=yourpassword go run main.go
+
+# Explicit SQLite mode
+USE_SQLITE=1 go run main.go
 ```
 
 ## Development
@@ -327,13 +385,26 @@ go test ./pkg/export
 
 ### Database Schema
 
-Required PostgreSQL tables:
+The SDK uses GORM for database abstraction and supports auto-migration:
+
+```go
+storage.AutoMigrate(db) // Creates tables automatically
+```
+
+**Tables created:**
 - `apps`: Application metadata
 - `nodes`: Graph nodes with type and state
 - `edges`: Graph edges with relationship types
 - `graph_runs`: Execution history
 
-See `migrations/` for schema definitions.
+**Database Support:**
+- **SQLite**: Built-in, file-based, zero configuration
+- **PostgreSQL**: Production-ready with manual migrations in `migrations/`
+
+For PostgreSQL, you can use manual migrations:
+```bash
+psql -d idp_orchestrator -f migrations/001_create_tables.sql
+```
 
 ## API Reference
 
@@ -384,7 +455,9 @@ See [`deprecated/README.md`](deprecated/README.md) for full migration guide.
 ## Prerequisites
 
 - Go 1.22+
-- PostgreSQL 12+ (for persistence features)
+- **Database** (choose one):
+  - SQLite (built-in, no setup required) - recommended for development
+  - PostgreSQL 12+ - recommended for production
 - GraphViz (for SVG/PNG export)
 
 ## License

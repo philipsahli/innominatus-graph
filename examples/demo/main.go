@@ -10,7 +10,6 @@ import (
 	"idp-orchestrator/pkg/graph"
 	"idp-orchestrator/pkg/storage"
 
-	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -203,17 +202,17 @@ func main() {
 	defer exporter.Close()
 
 	// Export to DOT
-	dotBytes, err := exporter.ExportGraph(g, export.FormatDOT)
-	if err != nil {
-		log.Fatalf("Failed to export DOT: %v", err)
+	dotBytes, dotErr := exporter.ExportGraph(g, export.FormatDOT)
+	if dotErr != nil {
+		log.Fatalf("Failed to export DOT: %v", dotErr)
 	}
 	os.WriteFile("demo-graph.dot", dotBytes, 0644)
 	fmt.Println("  ✅ Exported to demo-graph.dot")
 
 	// Export to SVG
-	svgBytes, err := exporter.ExportGraph(g, export.FormatSVG)
-	if err != nil {
-		log.Fatalf("Failed to export SVG: %v", err)
+	svgBytes, svgErr := exporter.ExportGraph(g, export.FormatSVG)
+	if svgErr != nil {
+		log.Fatalf("Failed to export SVG: %v", svgErr)
 	}
 	os.WriteFile("demo-graph.svg", svgBytes, 0644)
 	fmt.Println("  ✅ Exported to demo-graph.svg")
@@ -225,9 +224,9 @@ func main() {
 
 	// Simulate step failure
 	fmt.Println("\n  Simulating step failure...")
-	err = g.UpdateNodeState("provision-infra-step", graph.NodeStateFailed)
-	if err != nil {
-		log.Fatalf("Failed to update state: %v", err)
+	stateErr := g.UpdateNodeState("provision-infra-step", graph.NodeStateFailed)
+	if stateErr != nil {
+		log.Fatalf("Failed to update state: %v", stateErr)
 	}
 
 	// Check parent workflow state
@@ -245,53 +244,83 @@ func main() {
 	succeededNodes := g.GetNodesByState(graph.NodeStateSucceeded)
 	fmt.Printf("  Nodes in 'succeeded' state: %d\n", len(succeededNodes))
 
-	// Step 5: Optional - Database persistence (if configured)
-	dbHost := os.Getenv("DB_HOST")
-	if dbHost == "" {
-		dbHost = "localhost"
-	}
-
+	// Step 5: Database persistence (SQLite or PostgreSQL)
 	dbPassword := os.Getenv("DB_PASSWORD")
-	if dbPassword == "" {
-		fmt.Println("\n⚠️  Skipping database persistence (DB_PASSWORD not set)")
-		fmt.Println("   Set DB_PASSWORD=yourpassword to enable persistence demo")
-	} else {
-		fmt.Println("\n💾 Demonstrating database persistence...")
-		dsn := fmt.Sprintf("host=%s user=postgres password=%s dbname=idp_orchestrator port=5432 sslmode=disable",
-			dbHost, dbPassword)
+	useSQLite := os.Getenv("USE_SQLITE")
 
-		db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-		if err != nil {
-			fmt.Printf("   ⚠️  Could not connect to database: %v\n", err)
+	var db *gorm.DB
+	var dbErr error
+
+	if useSQLite != "" || dbPassword == "" {
+		fmt.Println("\n💾 Demonstrating SQLite persistence...")
+		db, dbErr = storage.NewSQLiteConnection("demo-graph.db")
+		if dbErr != nil {
+			fmt.Printf("   ⚠️  Could not connect to SQLite: %v\n", dbErr)
+		} else {
+			// Auto-migrate schema
+			storage.AutoMigrate(db)
+
+			repo := storage.NewRepository(db)
+
+			// Save graph
+			saveErr := repo.SaveGraph("demo-app", g)
+			if saveErr != nil {
+				log.Fatalf("Failed to save graph: %v", saveErr)
+			}
+			fmt.Println("  ✅ Graph saved to SQLite (demo-graph.db)")
+
+			// Load graph
+			loadedGraph, loadErr := repo.LoadGraph("demo-app")
+			if loadErr != nil {
+				log.Fatalf("Failed to load graph: %v", loadErr)
+			}
+			fmt.Printf("  ✅ Graph loaded from SQLite (%d nodes, %d edges)\n",
+				len(loadedGraph.Nodes), len(loadedGraph.Edges))
+
+			// Step 6: Execution with observer (SQLite)
+			fmt.Println("\n🎯 Demonstrating execution with observer...")
+			runner := execution.NewMockWorkflowRunner()
+			engine := execution.NewEngine(repo, runner)
+
+			// Register observer
+			observer := &DemoObserver{}
+			engine.RegisterObserver(observer)
+
+			fmt.Println("  Starting workflow execution with state change notifications...\n")
+			// Note: This would execute the workflow and trigger observer callbacks
+			// Skipped in demo to avoid complex setup
+		}
+	} else {
+		// PostgreSQL mode
+		dbHost := os.Getenv("DB_HOST")
+		if dbHost == "" {
+			dbHost = "localhost"
+		}
+
+		fmt.Println("\n💾 Demonstrating PostgreSQL persistence...")
+		db, dbErr = storage.NewPostgresConnection(dbHost, "postgres", dbPassword, "idp_orchestrator", "disable", 5432)
+		if dbErr != nil {
+			fmt.Printf("   ⚠️  Could not connect to PostgreSQL: %v\n", dbErr)
 		} else {
 			repo := storage.NewRepository(db)
 
 			// Save graph
-			err = repo.SaveGraph("demo-app", g)
-			if err != nil {
-				log.Fatalf("Failed to save graph: %v", err)
+			saveErr := repo.SaveGraph("demo-app", g)
+			if saveErr != nil {
+				log.Fatalf("Failed to save graph: %v", saveErr)
 			}
-			fmt.Println("  ✅ Graph saved to database")
+			fmt.Println("  ✅ Graph saved to PostgreSQL database")
 
 			// Load graph
-			loadedGraph, err := repo.LoadGraph("demo-app")
-			if err != nil {
-				log.Fatalf("Failed to load graph: %v", err)
+			loadedGraph, loadErr := repo.LoadGraph("demo-app")
+			if loadErr != nil {
+				log.Fatalf("Failed to load graph: %v", loadErr)
 			}
-			fmt.Printf("  ✅ Graph loaded from database (%d nodes, %d edges)\n",
+			fmt.Printf("  ✅ Graph loaded from PostgreSQL (%d nodes, %d edges)\n",
 				len(loadedGraph.Nodes), len(loadedGraph.Edges))
-		}
-	}
 
-	// Step 6: Execution with observer
-	if dbPassword != "" {
-		fmt.Println("\n🎯 Demonstrating execution with observer...")
-		dsn := fmt.Sprintf("host=%s user=postgres password=%s dbname=idp_orchestrator port=5432 sslmode=disable",
-			dbHost, dbPassword)
-
-		db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-		if err == nil {
-			repo := storage.NewRepository(db)
+			// Step 6: Execution with observer (PostgreSQL)
+			fmt.Println("\n🎯 Demonstrating execution with observer...")
 			runner := execution.NewMockWorkflowRunner()
 			engine := execution.NewEngine(repo, runner)
 
@@ -311,5 +340,8 @@ func main() {
 	fmt.Println("  1. Import this SDK in your orchestrator: go get github.com/innominatus/innominatus-graph")
 	fmt.Println("  2. View demo-graph.svg for visual representation")
 	fmt.Println("  3. Implement ExecutionObserver for real-time state tracking")
-	fmt.Println("  4. Integrate with PostgreSQL for persistence")
+	fmt.Println("  4. Use SQLite for development or PostgreSQL for production")
+	fmt.Println("\n💡 Database Options:")
+	fmt.Println("  - SQLite (default): Just run 'go run main.go'")
+	fmt.Println("  - PostgreSQL: DB_PASSWORD=yourpassword go run main.go")
 }
