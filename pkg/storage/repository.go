@@ -3,6 +3,7 @@ package storage
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"idp-orchestrator/pkg/graph"
 
@@ -174,6 +175,7 @@ func (r *Repository) nodeToModel(node *graph.Node, appID uuid.UUID) (*NodeModel,
 		Type:        string(node.Type),
 		Name:        node.Name,
 		Description: node.Description,
+		State:       string(node.State),
 		Properties:  string(propertiesJSON),
 		CreatedAt:   node.CreatedAt,
 		UpdatedAt:   node.UpdatedAt,
@@ -193,6 +195,7 @@ func (r *Repository) modelToNode(model *NodeModel) (*graph.Node, error) {
 		Type:        graph.NodeType(model.Type),
 		Name:        model.Name,
 		Description: model.Description,
+		State:       graph.NodeState(model.State),
 		Properties:  properties,
 		CreatedAt:   model.CreatedAt,
 		UpdatedAt:   model.UpdatedAt,
@@ -234,4 +237,31 @@ func (r *Repository) modelToEdge(model *EdgeModel) (*graph.Edge, error) {
 		Properties:  properties,
 		CreatedAt:   model.CreatedAt,
 	}, nil
+}
+
+func (r *Repository) UpdateNodeState(appName string, nodeID string, state graph.NodeState) error {
+	var app App
+	err := r.db.Where("name = ?", appName).First(&app).Error
+	if err != nil {
+		return fmt.Errorf("failed to find app: %w", err)
+	}
+
+	updates := map[string]interface{}{
+		"state":      string(state),
+		"updated_at": time.Now(),
+	}
+
+	result := r.db.Model(&NodeModel{}).
+		Where("app_id = ? AND id = ?", app.ID, nodeID).
+		Updates(updates)
+
+	if result.Error != nil {
+		return fmt.Errorf("failed to update node state: %w", result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("node %s not found in app %s", nodeID, appName)
+	}
+
+	return nil
 }

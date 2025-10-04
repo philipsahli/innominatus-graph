@@ -1,0 +1,50 @@
+# Pre-commit hooks for innominatus-graph
+repos:
+  # Go formatting and linting
+  - repo: https://github.com/dnephin/pre-commit-golang
+    rev: v0.5.1
+    hooks:
+      - id: go-fmt
+        name: Format Go code with gofmt
+      - id: go-vet
+        name: Run go vet
+      - id: go-mod-tidy
+        name: Run go mod tidy
+
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        name: Trim trailing whitespace
+      - id: end-of-file-fixer
+        name: Fix end of files
+      - id: check-yaml
+        name: Check YAML syntax
+      - id: check-added-large-files
+        name: Check for large files
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict
+        name: Check for merge conflicts
+      - id: mixed-line-ending
+        name: Check line endings
+
+  # Markdown linting
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.39.0
+    hooks:
+      - id: markdownlint
+        name: Lint Markdown files
+        args: ['--fix']
+
+# Configuration
+default_language_version:
+  golang: 1.22
+
+exclude: |
+  (?x)^(
+    deprecated/.*|
+    .*\.svg$|
+    .*\.png$|
+    .*\.dot$
+  )$

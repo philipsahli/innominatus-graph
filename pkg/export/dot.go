@@ -78,10 +78,18 @@ func (e *Exporter) generateDOT(g *graph.Graph) (string, error) {
 
 	for _, node := range g.Nodes {
 		nodeColor := e.getNodeColor(node.Type)
-		nodeLabel := e.escapeLabel(fmt.Sprintf("%s\\n(%s)", node.Name, node.Type))
+		nodeStyle := e.getNodeStyle(node)
+		nodeBorderColor := e.getNodeBorderColor(node.State)
 
-		buf.WriteString(fmt.Sprintf("  \"%s\" [label=\"%s\", fillcolor=\"%s\", style=\"filled,rounded\"];\n",
-			node.ID, nodeLabel, nodeColor))
+		// Include state in label
+		stateLabel := ""
+		if node.State != "" && node.State != graph.NodeStateWaiting {
+			stateLabel = fmt.Sprintf("\\n[%s]", node.State)
+		}
+		nodeLabel := e.escapeLabel(fmt.Sprintf("%s\\n(%s)%s", node.Name, node.Type, stateLabel))
+
+		buf.WriteString(fmt.Sprintf("  \"%s\" [label=\"%s\", fillcolor=\"%s\", color=\"%s\", style=\"%s\"];\n",
+			node.ID, nodeLabel, nodeColor, nodeBorderColor, nodeStyle))
 	}
 
 	buf.WriteString("\n")
@@ -109,11 +117,41 @@ func (e *Exporter) getNodeColor(nodeType graph.NodeType) string {
 	case graph.NodeTypeSpec:
 		return "#E3F2FD" // Light blue
 	case graph.NodeTypeWorkflow:
-		return "#E8F5E8" // Light green
+		return "#FFF9C4" // Light yellow
+	case graph.NodeTypeStep:
+		return "#FFE0B2" // Light orange
 	case graph.NodeTypeResource:
-		return "#FFF3E0" // Light orange
+		return "#C8E6C9" // Light green
 	default:
 		return "#F5F5F5" // Light gray
+	}
+}
+
+func (e *Exporter) getNodeStyle(node *graph.Node) string {
+	// Base style
+	style := "filled,rounded"
+
+	// Add state-based styling
+	switch node.State {
+	case graph.NodeStateFailed:
+		style += ",bold" // Bold red border
+	case graph.NodeStateRunning:
+		style += ",bold" // Bold border for running
+	}
+
+	return style
+}
+
+func (e *Exporter) getNodeBorderColor(state graph.NodeState) string {
+	switch state {
+	case graph.NodeStateFailed:
+		return "red"
+	case graph.NodeStateRunning:
+		return "#1976D2" // Blue for running
+	case graph.NodeStateSucceeded:
+		return "#388E3C" // Green for succeeded
+	default:
+		return "black"
 	}
 }
 
@@ -127,6 +165,10 @@ func (e *Exporter) getEdgeColor(edgeType graph.EdgeType) string {
 		return "#F57C00" // Orange
 	case graph.EdgeTypeBindsTo:
 		return "#7B1FA2" // Purple
+	case graph.EdgeTypeContains:
+		return "#FBC02D" // Yellow (workflow → step)
+	case graph.EdgeTypeConfigures:
+		return "#E64A19" // Deep Orange (step → resource)
 	default:
 		return "#757575" // Gray
 	}
@@ -142,6 +184,10 @@ func (e *Exporter) getEdgeStyle(edgeType graph.EdgeType) string {
 		return "dashed"
 	case graph.EdgeTypeBindsTo:
 		return "dotted"
+	case graph.EdgeTypeContains:
+		return "bold" // Workflow contains steps (bold line)
+	case graph.EdgeTypeConfigures:
+		return "dashed" // Step configures resource (dashed line)
 	default:
 		return "solid"
 	}

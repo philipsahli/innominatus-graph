@@ -42,6 +42,11 @@ func (m *MockRepository) GetGraphRuns(appName string) ([]storage.GraphRunModel, 
 	return args.Get(0).([]storage.GraphRunModel), args.Error(1)
 }
 
+func (m *MockRepository) UpdateNodeState(appName string, nodeID string, state graph.NodeState) error {
+	args := m.Called(appName, nodeID, state)
+	return args.Error(0)
+}
+
 // Mock WorkflowRunner
 type MockWorkflowRunnerTest struct {
 	mock.Mock

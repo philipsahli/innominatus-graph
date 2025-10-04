@@ -25,6 +25,7 @@ type NodeModel struct {
 	Type        string    `gorm:"type:varchar(50);not null;index" json:"type"`
 	Name        string    `gorm:"not null" json:"name"`
 	Description string    `json:"description,omitempty"`
+	State       string    `gorm:"type:varchar(50);not null;default:'waiting';index" json:"state"`
 	Properties  string    `gorm:"type:jsonb;default:'{}'" json:"properties"` // JSON string
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`

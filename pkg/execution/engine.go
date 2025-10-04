@@ -11,6 +11,11 @@ import (
 	"github.com/google/uuid"
 )
 
+// ExecutionObserver defines an interface for observing node state changes during execution
+type ExecutionObserver interface {
+	OnNodeStateChange(node *graph.Node, oldState, newState graph.NodeState)
+}
+
 type ExecutionStatus string
 
 const (
@@ -44,6 +49,7 @@ type ExecutionPlan struct {
 type Engine struct {
 	repository storage.RepositoryInterface
 	runner     WorkflowRunner
+	observers  []ExecutionObserver
 }
 
 type WorkflowRunner interface {
@@ -56,6 +62,19 @@ func NewEngine(repository storage.RepositoryInterface, runner WorkflowRunner) *E
 	return &Engine{
 		repository: repository,
 		runner:     runner,
+		observers:  make([]ExecutionObserver, 0),
+	}
+}
+
+// RegisterObserver registers an observer to receive state change notifications
+func (e *Engine) RegisterObserver(observer ExecutionObserver) {
+	e.observers = append(e.observers, observer)
+}
+
+// notifyStateChange notifies all observers of a node state change
+func (e *Engine) notifyStateChange(node *graph.Node, oldState, newState graph.NodeState) {
+	for _, observer := range e.observers {
+		observer.OnNodeStateChange(node, oldState, newState)
 	}
 }
 
@@ -166,18 +185,36 @@ func (e *Engine) executeNode(node *graph.Node, execution *NodeExecution, g *grap
 	execution.StartTime = &startTime
 	execution.Status = StatusRunning
 
+	// Notify observers of state change to running
+	oldState := node.State
+	node.State = graph.NodeStateRunning
+	e.notifyStateChange(node, oldState, graph.NodeStateRunning)
+
 	execution.Logs = append(execution.Logs, fmt.Sprintf("Starting execution of %s (%s)", node.Name, node.Type))
 
+	var err error
 	switch node.Type {
 	case graph.NodeTypeWorkflow:
-		return e.executeWorkflow(node, execution, g)
+		err = e.executeWorkflow(node, execution, g)
+	case graph.NodeTypeStep:
+		err = e.executeStep(node, execution, g)
 	case graph.NodeTypeSpec:
-		return e.executeSpec(node, execution)
+		err = e.executeSpec(node, execution)
 	case graph.NodeTypeResource:
-		return e.executeResource(node, execution, g)
+		err = e.executeResource(node, execution, g)
 	default:
-		return fmt.Errorf("unknown node type: %s", node.Type)
+		err = fmt.Errorf("unknown node type: %s", node.Type)
 	}
+
+	// Update node state based on execution result
+	newState := graph.NodeStateSucceeded
+	if err != nil {
+		newState = graph.NodeStateFailed
+	}
+	node.State = newState
+	e.notifyStateChange(node, graph.NodeStateRunning, newState)
+
+	return err
 }
 
 func (e *Engine) executeWorkflow(node *graph.Node, execution *NodeExecution, g *graph.Graph) error {
@@ -210,6 +247,32 @@ func (e *Engine) executeWorkflow(node *graph.Node, execution *NodeExecution, g *
 	}
 
 	execution.Logs = append(execution.Logs, "Workflow execution completed")
+	return nil
+}
+
+func (e *Engine) executeStep(node *graph.Node, execution *NodeExecution, g *graph.Graph) error {
+	execution.Logs = append(execution.Logs, "Executing workflow step...")
+
+	// Execute step logic (delegates to runner if available)
+	if runner, ok := e.runner.(interface {
+		RunStep(node *graph.Node) error
+	}); ok {
+		if err := runner.RunStep(node); err != nil {
+			return fmt.Errorf("step execution failed: %w", err)
+		}
+	}
+
+	// Process configures edges (step → resource)
+	for _, edge := range g.Edges {
+		if edge.Type == graph.EdgeTypeConfigures && edge.FromNodeID == node.ID {
+			targetNode, exists := g.GetNode(edge.ToNodeID)
+			if exists {
+				execution.Logs = append(execution.Logs, fmt.Sprintf("Configuring resource: %s", targetNode.Name))
+			}
+		}
+	}
+
+	execution.Logs = append(execution.Logs, "Step execution completed")
 	return nil
 }
 

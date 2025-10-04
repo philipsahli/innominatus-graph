@@ -113,9 +113,10 @@ func TestExporter_getNodeColor(t *testing.T) {
 		nodeType graph.NodeType
 		expected string
 	}{
-		{graph.NodeTypeSpec, "#E3F2FD"},
-		{graph.NodeTypeWorkflow, "#E8F5E8"},
-		{graph.NodeTypeResource, "#FFF3E0"},
+		{graph.NodeTypeSpec, "#E3F2FD"},     // Light blue
+		{graph.NodeTypeWorkflow, "#FFF9C4"}, // Light yellow (updated)
+		{graph.NodeTypeStep, "#FFE0B2"},     // Light orange (new)
+		{graph.NodeTypeResource, "#C8E6C9"}, // Light green (updated)
 		{graph.NodeType("unknown"), "#F5F5F5"},
 	}
 
@@ -137,6 +138,8 @@ func TestExporter_getEdgeColor(t *testing.T) {
 		{graph.EdgeTypeProvisions, "#388E3C"},
 		{graph.EdgeTypeCreates, "#F57C00"},
 		{graph.EdgeTypeBindsTo, "#7B1FA2"},
+		{graph.EdgeTypeContains, "#FBC02D"},   // Yellow (new)
+		{graph.EdgeTypeConfigures, "#E64A19"}, // Deep orange (new)
 		{graph.EdgeType("unknown"), "#757575"},
 	}
 
@@ -158,6 +161,8 @@ func TestExporter_getEdgeStyle(t *testing.T) {
 		{graph.EdgeTypeProvisions, "bold"},
 		{graph.EdgeTypeCreates, "dashed"},
 		{graph.EdgeTypeBindsTo, "dotted"},
+		{graph.EdgeTypeContains, "bold"},   // New
+		{graph.EdgeTypeConfigures, "dashed"}, // New
 		{graph.EdgeType("unknown"), "solid"},
 	}
 

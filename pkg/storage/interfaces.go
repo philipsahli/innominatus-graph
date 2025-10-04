@@ -12,4 +12,5 @@ type RepositoryInterface interface {
 	CreateGraphRun(appName string, version int) (*GraphRunModel, error)
 	UpdateGraphRun(runID uuid.UUID, status string, errorMessage *string) error
 	GetGraphRuns(appName string) ([]GraphRunModel, error)
+	UpdateNodeState(appName string, nodeID string, state graph.NodeState) error
 }
