@@ -108,6 +108,18 @@ func runServer(cmd *cobra.Command, args []string) error {
 	r.POST("/graphql", gin.WrapH(srv))
 	r.GET("/graphql", gin.WrapH(playground.Handler("GraphQL playground", "/graphql")))
 
+	r.GET("/", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"message": "IDP Orchestrator API",
+			"version": "1.0.0",
+			"endpoints": gin.H{
+				"health":   "/health",
+				"graphql":  "/graphql",
+				"rest_api": "/api/v1",
+			},
+		})
+	})
+
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"status":  "healthy",

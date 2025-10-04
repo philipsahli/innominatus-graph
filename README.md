@@ -1,6 +1,6 @@
-# IDP Orchestrator
+# Innominatus Graph
 
-A graph-based orchestrator for Internal Developer Platforms (IDPs) where everything (specs, workflows, resources) is represented as nodes in a graph, with relationships as edges. The graph serves as the execution, persistence, and visualization model.
+A graph component library for Internal Developer Platforms (IDPs) where everything (specs, workflows, resources) is represented as nodes in a graph, with relationships as edges. This library provides the core graph model, persistence, and visualization capabilities used by the [innominatus](https://github.com/innominatus) IDP orchestrator.
 
 ## Features
 
@@ -47,6 +47,181 @@ A graph-based orchestrator for Internal Developer Platforms (IDPs) where everyth
    - Unit tests for all core components
    - Mock implementations for external dependencies
    - Test coverage for graph operations, persistence, and export
+
+## Using as a Library
+
+This library can be imported and used in other Go projects to leverage the graph functionality.
+
+### Installation
+
+```bash
+go get github.com/innominatus/innominatus-graph
+```
+
+### Usage Examples
+
+#### 1. Creating and Manipulating Graphs
+
+```go
+import "github.com/innominatus/innominatus-graph/pkg/graph"
+
+// Create a new graph
+g := graph.NewGraph("my-app")
+
+// Add nodes
+specNode := &graph.Node{
+    ID:          "postgres-spec",
+    Type:        graph.NodeTypeSpec,
+    Name:        "PostgreSQL Database Spec",
+    Description: "Database configuration",
+    Properties: map[string]interface{}{
+        "version": "15",
+        "size":    "small",
+    },
+}
+g.AddNode(specNode)
+
+workflowNode := &graph.Node{
+    ID:          "provision-db",
+    Type:        graph.NodeTypeWorkflow,
+    Name:        "Provision Database",
+    Description: "Workflow to provision PostgreSQL",
+}
+g.AddNode(workflowNode)
+
+resourceNode := &graph.Node{
+    ID:          "postgres-instance",
+    Type:        graph.NodeTypeResource,
+    Name:        "PostgreSQL Instance",
+    Description: "Running database instance",
+}
+g.AddNode(resourceNode)
+
+// Add edges to define relationships
+edge1 := &graph.Edge{
+    ID:          "spec-to-workflow",
+    FromNodeID:  "postgres-spec",
+    ToNodeID:    "provision-db",
+    Type:        graph.EdgeTypeDependsOn,
+    Description: "Workflow depends on spec",
+}
+g.AddEdge(edge1)
+
+edge2 := &graph.Edge{
+    ID:          "workflow-to-resource",
+    FromNodeID:  "provision-db",
+    ToNodeID:    "postgres-instance",
+    Type:        graph.EdgeTypeProvisions,
+    Description: "Workflow provisions resource",
+}
+g.AddEdge(edge2)
+
+// Get topologically sorted order
+sorted, err := graph.TopologicalSort(g)
+if err != nil {
+    // Handle cycle detection or other errors
+    panic(err)
+}
+```
+
+#### 2. Persisting Graphs to PostgreSQL
+
+```go
+import (
+    "github.com/innominatus/innominatus-graph/pkg/storage"
+    "gorm.io/driver/postgres"
+    "gorm.io/gorm"
+)
+
+// Initialize database connection
+dsn := "host=localhost user=postgres password=secret dbname=idp_orchestrator port=5432"
+db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+if err != nil {
+    panic(err)
+}
+
+// Create repository
+repo := storage.NewRepository(db)
+
+// Save graph
+err = repo.SaveGraph("my-app", g)
+if err != nil {
+    panic(err)
+}
+
+// Load graph
+loadedGraph, err := repo.LoadGraph("my-app")
+if err != nil {
+    panic(err)
+}
+```
+
+#### 3. Exporting Graphs to DOT/SVG/PNG
+
+```go
+import "github.com/innominatus/innominatus-graph/pkg/export"
+
+// Create exporter
+exporter := export.NewExporter()
+defer exporter.Close()
+
+// Export to DOT format
+dotBytes, err := exporter.ExportGraph(g, export.FormatDOT)
+if err != nil {
+    panic(err)
+}
+
+// Export to SVG
+svgBytes, err := exporter.ExportGraph(g, export.FormatSVG)
+if err != nil {
+    panic(err)
+}
+
+// Export to PNG
+pngBytes, err := exporter.ExportGraph(g, export.FormatPNG)
+if err != nil {
+    panic(err)
+}
+
+// Write to file
+os.WriteFile("graph.svg", svgBytes, 0644)
+```
+
+#### 4. Executing Graphs
+
+```go
+import "github.com/innominatus/innominatus-graph/pkg/execution"
+
+// Implement your own workflow runner
+type MyWorkflowRunner struct{}
+
+func (r *MyWorkflowRunner) RunWorkflow(node *graph.Node) error {
+    // Your custom workflow execution logic
+    fmt.Printf("Executing workflow: %s\n", node.Name)
+    return nil
+}
+
+// Create execution engine
+engine := execution.NewEngine(repo, &MyWorkflowRunner{})
+
+// Execute the graph
+plan, err := engine.Execute("my-app")
+if err != nil {
+    panic(err)
+}
+
+// Check execution status
+fmt.Printf("Execution status: %s\n", plan.Status)
+for nodeID, exec := range plan.Executions {
+    fmt.Printf("Node %s: %s\n", nodeID, exec.Status)
+}
+```
+
+### Prerequisites for Library Usage
+
+- Go 1.21+
+- PostgreSQL 12+ (if using persistence features)
+- GraphViz (if using export features with SVG/PNG formats)
 
 ## Project Structure
 

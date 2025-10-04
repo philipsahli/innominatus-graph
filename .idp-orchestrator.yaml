@@ -1,0 +1,44 @@
+# IDP Orchestrator Configuration
+# This is a starting point configuration file
+
+# Server configuration
+server:
+  port: 8080
+  host: "0.0.0.0"
+
+# Database configuration
+database:
+  type: "postgres"
+  host: "localhost"
+  port: 5432
+  name: "idp_orchestrator_graph"
+  user: "postgres"
+  password: ""
+  ssl_mode: "disable"
+
+# GraphQL configuration
+graphql:
+  playground: true
+  introspection: true
+
+# Logging configuration
+logging:
+  level: "info"
+  format: "json"
+
+# Authentication/Authorization
+auth:
+  enabled: false
+  # jwt_secret: "your-secret-key"
+  # token_expiry: "24h"
+
+# Orchestration settings
+orchestration:
+  max_concurrent_jobs: 10
+  job_timeout: "30m"
+  retry_attempts: 3
+
+# Monitoring
+monitoring:
+  metrics_enabled: true
+  health_check_path: "/health"
