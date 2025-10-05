@@ -63,15 +63,15 @@ type GraphRunModel struct {
 }
 
 func (App) TableName() string {
-	return "apps"
+	return "graph_apps"
 }
 
 func (NodeModel) TableName() string {
-	return "nodes"
+	return "graph_nodes"
 }
 
 func (EdgeModel) TableName() string {
-	return "edges"
+	return "graph_edges"
 }
 
 func (GraphRunModel) TableName() string {

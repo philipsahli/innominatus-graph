@@ -1,4 +1,4 @@
-module idp-orchestrator
+module github.com/philipsahli/innominatus-graph
 
 go 1.24.0
 
