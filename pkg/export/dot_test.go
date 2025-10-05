@@ -3,7 +3,7 @@ package export
 import (
 	"testing"
 
-	"idp-orchestrator/pkg/graph"
+	"github.com/philipsahli/innominatus-graph/pkg/graph"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -161,7 +161,7 @@ func TestExporter_getEdgeStyle(t *testing.T) {
 		{graph.EdgeTypeProvisions, "bold"},
 		{graph.EdgeTypeCreates, "dashed"},
 		{graph.EdgeTypeBindsTo, "dotted"},
-		{graph.EdgeTypeContains, "bold"},   // New
+		{graph.EdgeTypeContains, "bold"},     // New
 		{graph.EdgeTypeConfigures, "dashed"}, // New
 		{graph.EdgeType("unknown"), "solid"},
 	}

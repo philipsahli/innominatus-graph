@@ -171,9 +171,9 @@ parent, _ := g.GetParentWorkflow("provision-step")
 
 ### Test Results
 ```
-ok  	idp-orchestrator/pkg/execution	0.463s
-ok  	idp-orchestrator/pkg/export	0.220s
-ok  	idp-orchestrator/pkg/graph	0.146s
+ok  	github.com/philipsahli/innominatus-graph/pkg/execution	0.463s
+ok  	github.com/philipsahli/innominatus-graph/pkg/export	0.220s
+ok  	github.com/philipsahli/innominatus-graph/pkg/graph	0.146s
 ```
 
 ## Integration with Innominatus Orchestrator

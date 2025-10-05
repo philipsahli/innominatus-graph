@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"idp-orchestrator/pkg/graph"
+	"github.com/philipsahli/innominatus-graph/pkg/graph"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"

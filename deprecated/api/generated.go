@@ -7,7 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"idp-orchestrator/pkg/graph"
+	"github.com/philipsahli/innominatus-graph/pkg/graph"
 	"strconv"
 	"sync"
 	"sync/atomic"

@@ -3,8 +3,9 @@ package execution
 import (
 	"testing"
 
-	"idp-orchestrator/pkg/graph"
-	"idp-orchestrator/pkg/storage"
+	"github.com/philipsahli/innominatus-graph/pkg/storage"
+
+	"github.com/philipsahli/innominatus-graph/pkg/graph"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"

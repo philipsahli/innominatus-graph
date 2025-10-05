@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"idp-orchestrator/pkg/graph"
+	"github.com/philipsahli/innominatus-graph/pkg/graph"
 
 	"github.com/goccy/go-graphviz"
 )

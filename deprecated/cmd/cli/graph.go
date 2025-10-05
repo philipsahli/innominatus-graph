@@ -6,8 +6,10 @@ import (
 	"os"
 
 	"idp-orchestrator/internal/config"
-	"idp-orchestrator/pkg/export"
-	"idp-orchestrator/pkg/storage"
+
+	"github.com/philipsahli/innominatus-graph/pkg/storage"
+
+	"github.com/philipsahli/innominatus-graph/pkg/export"
 
 	"github.com/spf13/cobra"
 )

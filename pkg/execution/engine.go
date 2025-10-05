@@ -5,8 +5,9 @@ import (
 	"log"
 	"time"
 
-	"idp-orchestrator/pkg/graph"
-	"idp-orchestrator/pkg/storage"
+	"github.com/philipsahli/innominatus-graph/pkg/storage"
+
+	"github.com/philipsahli/innominatus-graph/pkg/graph"
 
 	"github.com/google/uuid"
 )
@@ -19,11 +20,11 @@ type ExecutionObserver interface {
 type ExecutionStatus string
 
 const (
-	StatusPending    ExecutionStatus = "pending"
-	StatusRunning    ExecutionStatus = "running"
-	StatusCompleted  ExecutionStatus = "completed"
-	StatusFailed     ExecutionStatus = "failed"
-	StatusSkipped    ExecutionStatus = "skipped"
+	StatusPending   ExecutionStatus = "pending"
+	StatusRunning   ExecutionStatus = "running"
+	StatusCompleted ExecutionStatus = "completed"
+	StatusFailed    ExecutionStatus = "failed"
+	StatusSkipped   ExecutionStatus = "skipped"
 )
 
 type NodeExecution struct {
@@ -36,14 +37,14 @@ type NodeExecution struct {
 }
 
 type ExecutionPlan struct {
-	RunID      uuid.UUID                `json:"run_id"`
-	AppName    string                   `json:"app_name"`
-	Version    int                      `json:"version"`
-	Status     ExecutionStatus          `json:"status"`
-	StartTime  time.Time                `json:"start_time"`
-	EndTime    *time.Time               `json:"end_time,omitempty"`
+	RunID      uuid.UUID                 `json:"run_id"`
+	AppName    string                    `json:"app_name"`
+	Version    int                       `json:"version"`
+	Status     ExecutionStatus           `json:"status"`
+	StartTime  time.Time                 `json:"start_time"`
+	EndTime    *time.Time                `json:"end_time,omitempty"`
 	Executions map[string]*NodeExecution `json:"executions"`
-	Order      []*graph.Node            `json:"order"`
+	Order      []*graph.Node             `json:"order"`
 }
 
 type Engine struct {

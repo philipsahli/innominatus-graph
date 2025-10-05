@@ -5,10 +5,13 @@ import (
 	"log"
 	"os"
 
-	"idp-orchestrator/pkg/execution"
-	"idp-orchestrator/pkg/export"
-	"idp-orchestrator/pkg/graph"
-	"idp-orchestrator/pkg/storage"
+	"github.com/philipsahli/innominatus-graph/pkg/storage"
+
+	"github.com/philipsahli/innominatus-graph/pkg/export"
+
+	"github.com/philipsahli/innominatus-graph/pkg/execution"
+
+	"github.com/philipsahli/innominatus-graph/pkg/graph"
 
 	"gorm.io/gorm"
 )

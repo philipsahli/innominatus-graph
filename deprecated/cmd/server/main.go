@@ -9,8 +9,9 @@ import (
 	"os/signal"
 	"time"
 
-	"idp-orchestrator/pkg/api"
-	"idp-orchestrator/pkg/storage"
+	"github.com/philipsahli/innominatus-graph/pkg/storage"
+
+	"github.com/philipsahli/innominatus-graph/pkg/api"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"

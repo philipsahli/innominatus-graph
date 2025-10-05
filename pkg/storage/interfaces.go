@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"idp-orchestrator/pkg/graph"
+	"github.com/philipsahli/innominatus-graph/pkg/graph"
 
 	"github.com/google/uuid"
 )

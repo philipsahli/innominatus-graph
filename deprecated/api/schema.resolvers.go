@@ -8,7 +8,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"idp-orchestrator/pkg/graph"
+
+	"github.com/philipsahli/innominatus-graph/pkg/graph"
 )
 
 // Properties is the resolver for the properties field.
