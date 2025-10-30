@@ -42,6 +42,9 @@ type Node struct {
 	Description string                 `json:"description,omitempty"`
 	State       NodeState              `json:"state"`
 	Properties  map[string]interface{} `json:"properties,omitempty"`
+	StartedAt   *time.Time             `json:"started_at,omitempty"`   // When execution started
+	CompletedAt *time.Time             `json:"completed_at,omitempty"` // When execution completed
+	Duration    *time.Duration         `json:"duration,omitempty"`     // Execution duration
 	CreatedAt   time.Time              `json:"created_at"`
 	UpdatedAt   time.Time              `json:"updated_at"`
 }
@@ -226,8 +229,22 @@ func (g *Graph) UpdateNodeState(nodeID string, newState NodeState) error {
 
 	oldState := node.State
 	node.State = newState
-	node.UpdatedAt = time.Now()
-	g.UpdatedAt = time.Now()
+	now := time.Now()
+	node.UpdatedAt = now
+	g.UpdatedAt = now
+
+	// Update timing fields based on state transitions
+	if newState == NodeStateRunning && node.StartedAt == nil {
+		node.StartedAt = &now
+	}
+	if (newState == NodeStateSucceeded || newState == NodeStateFailed) && node.CompletedAt == nil {
+		node.CompletedAt = &now
+		// Calculate duration if both start and completion times are set
+		if node.StartedAt != nil {
+			duration := node.CompletedAt.Sub(*node.StartedAt)
+			node.Duration = &duration
+		}
+	}
 
 	// Propagate state upward if step failed -> workflow failed
 	if node.Type == NodeTypeStep && newState == NodeStateFailed {

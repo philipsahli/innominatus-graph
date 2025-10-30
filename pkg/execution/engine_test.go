@@ -230,3 +230,131 @@ func TestMockWorkflowRunner_CreateResource(t *testing.T) {
 	err := runner.CreateResource(workflow, target)
 	assert.NoError(t, err)
 }
+
+func TestEngine_RegisterObserver(t *testing.T) {
+	engine := NewEngine(nil, nil)
+
+	observer1 := &MockObserver{}
+	observer2 := &MockObserver{}
+
+	engine.RegisterObserver(observer1)
+	engine.RegisterObserver(observer2)
+
+	assert.Len(t, engine.observers, 2)
+}
+
+func TestEngine_NotifyStateChange(t *testing.T) {
+	engine := NewEngine(nil, nil)
+
+	observer := &MockObserver{}
+	engine.RegisterObserver(observer)
+
+	node := &graph.Node{ID: "n1", Type: graph.NodeTypeStep, Name: "Test"}
+
+	observer.On("OnNodeStateChange", node, graph.NodeStateWaiting, graph.NodeStateRunning).Return()
+
+	engine.notifyStateChange(node, graph.NodeStateWaiting, graph.NodeStateRunning)
+
+	observer.AssertExpectations(t)
+}
+
+func TestEngine_ExecuteWorkflow_WithCreatesEdge(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockRunner := &MockWorkflowRunnerTest{}
+
+	g := graph.NewGraph("test-app")
+	workflow := &graph.Node{ID: "wf1", Type: graph.NodeTypeWorkflow, Name: "Deploy"}
+	resource := &graph.Node{ID: "res1", Type: graph.NodeTypeResource, Name: "Database"}
+
+	g.AddNode(workflow)
+	g.AddNode(resource)
+
+	// Creates edge instead of Provisions
+	edge := &graph.Edge{
+		ID:         "e1",
+		FromNodeID: "wf1",
+		ToNodeID:   "res1",
+		Type:       graph.EdgeTypeCreates,
+	}
+	g.AddEdge(edge)
+
+	g.Version = 1 // Set version to 1
+	mockRepo.On("LoadGraph", "test-app").Return(g, nil)
+
+	runModel := &storage.GraphRunModel{ID: uuid.New()}
+	mockRepo.On("CreateGraphRun", "test-app", 1).Return(runModel, nil)
+	mockRepo.On("UpdateGraphRun", runModel.ID, "running", (*string)(nil)).Return(nil)
+	mockRepo.On("UpdateGraphRun", runModel.ID, "completed", (*string)(nil)).Return(nil)
+
+	mockRunner.On("RunWorkflow", mock.AnythingOfType("*graph.Node")).Return(nil)
+	mockRunner.On("CreateResource", mock.AnythingOfType("*graph.Node"), mock.AnythingOfType("*graph.Node")).Return(nil)
+
+	engine := NewEngine(mockRepo, mockRunner)
+
+	plan, err := engine.ExecuteGraph("test-app")
+	require.NoError(t, err)
+
+	assert.Equal(t, StatusCompleted, plan.Status)
+
+	mockRepo.AssertExpectations(t)
+	mockRunner.AssertExpectations(t)
+}
+
+func TestEngine_ExecuteStep_WithConfiguresEdge(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockRunner := &MockWorkflowRunnerTest{}
+
+	g := graph.NewGraph("test-app")
+	workflow := &graph.Node{ID: "wf1", Type: graph.NodeTypeWorkflow, Name: "Deploy"}
+	step := &graph.Node{ID: "step1", Type: graph.NodeTypeStep, Name: "Configure"}
+	resource := &graph.Node{ID: "res1", Type: graph.NodeTypeResource, Name: "Database"}
+
+	g.AddNode(workflow)
+	g.AddNode(step)
+	g.AddNode(resource)
+
+	g.AddEdge(&graph.Edge{ID: "e1", FromNodeID: "wf1", ToNodeID: "step1", Type: graph.EdgeTypeContains})
+	g.AddEdge(&graph.Edge{ID: "e2", FromNodeID: "step1", ToNodeID: "res1", Type: graph.EdgeTypeConfigures})
+
+	g.Version = 1 // Set version to 1
+	mockRepo.On("LoadGraph", "test-app").Return(g, nil)
+
+	runModel := &storage.GraphRunModel{ID: uuid.New()}
+	mockRepo.On("CreateGraphRun", "test-app", 1).Return(runModel, nil)
+	mockRepo.On("UpdateGraphRun", runModel.ID, "running", (*string)(nil)).Return(nil)
+	mockRepo.On("UpdateGraphRun", runModel.ID, "completed", (*string)(nil)).Return(nil)
+
+	mockRunner.On("RunWorkflow", mock.AnythingOfType("*graph.Node")).Return(nil)
+
+	engine := NewEngine(mockRepo, mockRunner)
+
+	plan, err := engine.ExecuteGraph("test-app")
+	require.NoError(t, err)
+
+	assert.Equal(t, StatusCompleted, plan.Status)
+
+	stepExec := plan.Executions["step1"]
+	assert.Equal(t, StatusCompleted, stepExec.Status)
+
+	// Check that logs contain resource configuration
+	found := false
+	for _, log := range stepExec.Logs {
+		if log == "Configuring resource: Database" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "Expected log about configuring resource")
+
+	mockRepo.AssertExpectations(t)
+	mockRunner.AssertExpectations(t)
+}
+
+// MockObserver for testing observer pattern
+type MockObserver struct {
+	mock.Mock
+}
+
+func (m *MockObserver) OnNodeStateChange(node *graph.Node, oldState, newState graph.NodeState) {
+	m.Called(node, oldState, newState)
+}

@@ -25,7 +25,7 @@ func (o *DemoObserver) OnNodeStateChange(node *graph.Node, oldState, newState gr
 
 func main() {
 	fmt.Println("🚀 Innominatus Graph SDK Demo")
-	fmt.Println("========================================\n")
+	fmt.Println("========================================")
 
 	// Step 1: Create a graph with workflow, steps, and resources
 	fmt.Println("📊 Building graph with workflow → steps → resources...")
