@@ -5,7 +5,7 @@ import (
 	"io"
 	"os"
 
-	"idp-orchestrator/internal/config"
+	"innominatusrchestrator/internal/config"
 
 	"github.com/philipsahli/innominatus-graph/pkg/storage"
 

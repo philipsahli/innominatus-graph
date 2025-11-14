@@ -16,7 +16,7 @@
 ### If you were using the CLI:
 ```go
 // OLD: Running CLI commands
-// ./idp-o-ctl graph export --app demo --format svg
+// ./innominatus-ctl graph export --app demo --format svg
 
 // NEW: Use SDK directly in your Go code
 import "github.com/innominatus/innominatus-graph/pkg/export"

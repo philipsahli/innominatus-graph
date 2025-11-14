@@ -38,7 +38,7 @@ func main() {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "idp-orchestrator-server",
+	Use:   "innominatusrchestrator-server",
 	Short: "IDP Orchestrator API Server",
 	Long:  `HTTP server providing REST and GraphQL APIs for the IDP Orchestrator`,
 	RunE:  runServer,

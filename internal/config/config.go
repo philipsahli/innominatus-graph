@@ -27,7 +27,7 @@ func InitConfig() {
 		viper.AddConfigPath(home)
 		viper.AddConfigPath(".")
 		viper.SetConfigType("yaml")
-		viper.SetConfigName(".idp-orchestrator")
+		viper.SetConfigName(".innominatusrchestrator")
 	}
 
 	viper.AutomaticEnv()

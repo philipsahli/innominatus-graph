@@ -60,7 +60,7 @@ Successfully refactored **innominatus-graph** from a standalone application (CLI
 ```
 innominatus-graph/
 ├── cmd/
-│   ├── cli/       # CLI tool (idp-o-ctl)
+│   ├── cli/       # CLI tool (innominatus-ctl)
 │   └── server/    # REST + GraphQL API server
 ├── pkg/
 │   ├── api/       # REST and GraphQL handlers
@@ -219,10 +219,10 @@ repo.SaveGraph(appName, g)
 
 ⚠️ **CLI and API Server Deprecated**
 
-Previous versions included standalone CLI (`idp-o-ctl`) and API server. These have been moved to `deprecated/` directory.
+Previous versions included standalone CLI (`innominatus-ctl`) and API server. These have been moved to `deprecated/` directory.
 
 **Migration:**
-- **Old**: `./idp-o-ctl graph export --app demo --format svg`
+- **Old**: `./innominatus-ctl graph export --app demo --format svg`
 - **New**: Use SDK directly in your Go code
 
 See `deprecated/README.md` for full migration guide.

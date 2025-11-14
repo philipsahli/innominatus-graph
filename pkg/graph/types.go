@@ -8,10 +8,13 @@ import (
 type NodeType string
 
 const (
-	NodeTypeSpec     NodeType = "spec"
-	NodeTypeWorkflow NodeType = "workflow"
-	NodeTypeStep     NodeType = "step"
-	NodeTypeResource NodeType = "resource"
+	NodeTypeTeam        NodeType = "team"
+	NodeTypeApplication NodeType = "application"
+	NodeTypeSpec        NodeType = "spec"
+	NodeTypeWorkflow    NodeType = "workflow"
+	NodeTypeStep        NodeType = "step"
+	NodeTypeResource    NodeType = "resource"
+	NodeTypeProvider    NodeType = "provider"
 )
 
 type EdgeType string
@@ -21,8 +24,13 @@ const (
 	EdgeTypeProvisions EdgeType = "provisions"
 	EdgeTypeCreates    EdgeType = "creates"
 	EdgeTypeBindsTo    EdgeType = "binds-to"
-	EdgeTypeContains   EdgeType = "contains"   // workflow → step
+	EdgeTypeContains   EdgeType = "contains"   // workflow → step, spec → resource
 	EdgeTypeConfigures EdgeType = "configures" // step → resource
+	EdgeTypeRequires   EdgeType = "requires"   // resource → provider
+	EdgeTypeExecutes   EdgeType = "executes"   // provider → workflow
+	EdgeTypeTriggers   EdgeType = "triggers"   // spec → workflow
+	EdgeTypeOwns       EdgeType = "owns"       // team → application
+	EdgeTypeHasSpec    EdgeType = "has-spec"   // application → spec
 )
 
 type NodeState string
@@ -157,18 +165,60 @@ func (g *Graph) validateEdge(edge *Edge) error {
 			return fmt.Errorf("binds-to edge can only target resource nodes")
 		}
 	case EdgeTypeContains:
-		if fromNode.Type != NodeTypeWorkflow {
-			return fmt.Errorf("contains edge can only originate from workflow nodes")
+		// Allow spec → resource AND workflow → step
+		if fromNode.Type == NodeTypeSpec && toNode.Type == NodeTypeResource {
+			return nil // spec contains resources
 		}
-		if toNode.Type != NodeTypeStep {
-			return fmt.Errorf("contains edge can only target step nodes")
+		if fromNode.Type == NodeTypeWorkflow && toNode.Type == NodeTypeStep {
+			return nil // workflow contains steps
 		}
+		return fmt.Errorf("contains edge requires (spec→resource) or (workflow→step), got (%s→%s)", fromNode.Type, toNode.Type)
 	case EdgeTypeConfigures:
 		if fromNode.Type != NodeTypeStep {
 			return fmt.Errorf("configures edge can only originate from step nodes")
 		}
 		if toNode.Type != NodeTypeResource {
 			return fmt.Errorf("configures edge can only target resource nodes")
+		}
+	case EdgeTypeRequires:
+		// resource → provider (resource requires provider)
+		if fromNode.Type != NodeTypeResource {
+			return fmt.Errorf("requires edge can only originate from resource nodes, got %s", fromNode.Type)
+		}
+		if toNode.Type != NodeTypeProvider {
+			return fmt.Errorf("requires edge can only target provider nodes, got %s", toNode.Type)
+		}
+	case EdgeTypeExecutes:
+		// provider → workflow (provider executes workflow)
+		if fromNode.Type != NodeTypeProvider {
+			return fmt.Errorf("executes edge can only originate from provider nodes, got %s", fromNode.Type)
+		}
+		if toNode.Type != NodeTypeWorkflow {
+			return fmt.Errorf("executes edge can only target workflow nodes, got %s", toNode.Type)
+		}
+	case EdgeTypeTriggers:
+		// spec → workflow (spec triggers workflow)
+		if fromNode.Type != NodeTypeSpec {
+			return fmt.Errorf("triggers edge can only originate from spec nodes, got %s", fromNode.Type)
+		}
+		if toNode.Type != NodeTypeWorkflow {
+			return fmt.Errorf("triggers edge can only target workflow nodes, got %s", toNode.Type)
+		}
+	case EdgeTypeOwns:
+		// team → application (team owns application)
+		if fromNode.Type != NodeTypeTeam {
+			return fmt.Errorf("owns edge can only originate from team nodes, got %s", fromNode.Type)
+		}
+		if toNode.Type != NodeTypeApplication {
+			return fmt.Errorf("owns edge can only target application nodes, got %s", toNode.Type)
+		}
+	case EdgeTypeHasSpec:
+		// application → spec (application has spec version)
+		if fromNode.Type != NodeTypeApplication {
+			return fmt.Errorf("has-spec edge can only originate from application nodes, got %s", fromNode.Type)
+		}
+		if toNode.Type != NodeTypeSpec {
+			return fmt.Errorf("has-spec edge can only target spec nodes, got %s", toNode.Type)
 		}
 	default:
 		return fmt.Errorf("invalid edge type: %s", edge.Type)

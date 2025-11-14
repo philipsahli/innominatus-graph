@@ -6,10 +6,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"idp-orchestrator/internal/config"
+	"innominatusrchestrator/internal/config"
 
-	"github.com/spf13/cobra"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -26,7 +26,7 @@ func main() {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "idp-o-ctl",
+	Use:   "innominatus-ctl",
 	Short: "IDP Orchestrator CLI",
 	Long:  `Command line tool for the IDP Orchestrator graph-based platform`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
@@ -39,7 +39,7 @@ func init() {
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(initdbCmd)
 
-	rootCmd.PersistentFlags().StringVar(&config.ConfigFile, "config", "", "config file (default is $HOME/.idp-orchestrator.yaml)")
+	rootCmd.PersistentFlags().StringVar(&config.ConfigFile, "config", "", "config file (default is $HOME/.innominatusrchestrator.yaml)")
 	rootCmd.PersistentFlags().StringVar(&config.DatabaseHost, "db-host", "localhost", "database host")
 	rootCmd.PersistentFlags().IntVar(&config.DatabasePort, "db-port", 5432, "database port")
 	rootCmd.PersistentFlags().StringVar(&config.DatabaseUser, "db-user", "postgres", "database user")
@@ -51,7 +51,7 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print the version information",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("idp-o-ctl version %s\n", version)
+		fmt.Printf("innominatus-ctl version %s\n", version)
 		fmt.Printf("Built on %s from commit %s\n", date, commit)
 	},
 }
