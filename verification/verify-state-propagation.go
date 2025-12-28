@@ -26,7 +26,7 @@ func main() {
 		Artifacts: []string{},
 	}
 
-	fmt.Println("=== Verification: State Propagation ===\n")
+	fmt.Println("=== Verification: State Propagation ===")
 
 	// Setup: Create graph with workflow and steps
 	g := graph.NewGraph("state-propagation-test")

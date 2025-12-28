@@ -289,7 +289,7 @@ func main() {
 			observer := &DemoObserver{}
 			engine.RegisterObserver(observer)
 
-			fmt.Println("  Starting workflow execution with state change notifications...\n")
+			fmt.Println("  Starting workflow execution with state change notifications...")
 			// Note: This would execute the workflow and trigger observer callbacks
 			// Skipped in demo to avoid complex setup
 		}
@@ -331,7 +331,7 @@ func main() {
 			observer := &DemoObserver{}
 			engine.RegisterObserver(observer)
 
-			fmt.Println("  Starting workflow execution with state change notifications...\n")
+			fmt.Println("  Starting workflow execution with state change notifications...")
 			// Note: This would execute the workflow and trigger observer callbacks
 			// Skipped in demo to avoid complex setup
 		}

@@ -2,6 +2,7 @@ package graph
 
 import (
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -41,6 +42,7 @@ const (
 	NodeStateRunning   NodeState = "running"   // Currently executing
 	NodeStateFailed    NodeState = "failed"    // Execution failed
 	NodeStateSucceeded NodeState = "succeeded" // Execution succeeded
+	NodeStateSkipped   NodeState = "skipped"   // Skipped (condition not met)
 )
 
 type Node struct {
@@ -55,6 +57,14 @@ type Node struct {
 	Duration    *time.Duration         `json:"duration,omitempty"`     // Execution duration
 	CreatedAt   time.Time              `json:"created_at"`
 	UpdatedAt   time.Time              `json:"updated_at"`
+
+	// Performance optimization: Adjacency lists for O(D) instead of O(E) traversal
+	IncomingEdges []*Edge `json:"-"` // Edges pointing TO this node (dependencies)
+	OutgoingEdges []*Edge `json:"-"` // Edges pointing FROM this node (dependents)
+
+	// Performance optimization: Cached degree counts for O(1) ready node detection
+	InDegree  int `json:"in_degree"`  // Count of incoming dependency edges
+	OutDegree int `json:"out_degree"` // Count of outgoing edges
 }
 
 type Edge struct {
@@ -68,6 +78,8 @@ type Edge struct {
 }
 
 type Graph struct {
+	mu sync.RWMutex // Thread safety for concurrent access
+
 	ID        string           `json:"id"`
 	AppName   string           `json:"app_name"`
 	Version   int              `json:"version"`
@@ -96,6 +108,10 @@ func (g *Graph) AddNode(node *Node) error {
 	if node.ID == "" {
 		return fmt.Errorf("node ID cannot be empty")
 	}
+
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
 	if _, exists := g.Nodes[node.ID]; exists {
 		return fmt.Errorf("node with ID %s already exists", node.ID)
 	}
@@ -103,6 +119,14 @@ func (g *Graph) AddNode(node *Node) error {
 	// Initialize state if not set
 	if node.State == "" {
 		node.State = NodeStateWaiting
+	}
+
+	// Initialize adjacency lists
+	if node.IncomingEdges == nil {
+		node.IncomingEdges = make([]*Edge, 0)
+	}
+	if node.OutgoingEdges == nil {
+		node.OutgoingEdges = make([]*Edge, 0)
 	}
 
 	node.CreatedAt = time.Now()
@@ -120,14 +144,20 @@ func (g *Graph) AddEdge(edge *Edge) error {
 	if edge.ID == "" {
 		return fmt.Errorf("edge ID cannot be empty")
 	}
+
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
 	if _, exists := g.Edges[edge.ID]; exists {
 		return fmt.Errorf("edge with ID %s already exists", edge.ID)
 	}
 
-	if _, exists := g.Nodes[edge.FromNodeID]; !exists {
+	fromNode, fromExists := g.Nodes[edge.FromNodeID]
+	if !fromExists {
 		return fmt.Errorf("from node %s does not exist", edge.FromNodeID)
 	}
-	if _, exists := g.Nodes[edge.ToNodeID]; !exists {
+	toNode, toExists := g.Nodes[edge.ToNodeID]
+	if !toExists {
 		return fmt.Errorf("to node %s does not exist", edge.ToNodeID)
 	}
 
@@ -138,6 +168,20 @@ func (g *Graph) AddEdge(edge *Edge) error {
 	edge.CreatedAt = time.Now()
 	g.Edges[edge.ID] = edge
 	g.UpdatedAt = time.Now()
+
+	// Maintain adjacency lists for O(D) traversal
+	fromNode.OutgoingEdges = append(fromNode.OutgoingEdges, edge)
+	toNode.IncomingEdges = append(toNode.IncomingEdges, edge)
+
+	// Update degree counts for O(1) ready node detection
+	fromNode.OutDegree++
+	// For DependsOn edges, the FROM node is the dependent (has a dependency)
+	// For other edges, track TO node's InDegree for general purposes
+	if edge.Type == EdgeTypeDependsOn {
+		fromNode.InDegree++
+	} else {
+		toNode.InDegree++
+	}
 
 	return nil
 }
@@ -228,27 +272,61 @@ func (g *Graph) validateEdge(edge *Edge) error {
 }
 
 func (g *Graph) GetNode(id string) (*Node, bool) {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
 	node, exists := g.Nodes[id]
 	return node, exists
 }
 
 func (g *Graph) GetEdge(id string) (*Edge, bool) {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
 	edge, exists := g.Edges[id]
 	return edge, exists
 }
 
 func (g *Graph) RemoveNode(id string) error {
-	if _, exists := g.Nodes[id]; !exists {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	node, exists := g.Nodes[id]
+	if !exists {
 		return fmt.Errorf("node %s does not exist", id)
 	}
 
-	edgesToRemove := []string{}
-	for edgeID, edge := range g.Edges {
-		if edge.FromNodeID == id || edge.ToNodeID == id {
-			edgesToRemove = append(edgesToRemove, edgeID)
+	// Remove all edges connected to this node and update adjacency lists
+	edgesToRemove := make([]string, 0)
+
+	// Remove outgoing edges
+	for _, edge := range node.OutgoingEdges {
+		edgesToRemove = append(edgesToRemove, edge.ID)
+		// Update target node's incoming edges
+		if targetNode, ok := g.Nodes[edge.ToNodeID]; ok {
+			// For non-DependsOn edges, decrement target's InDegree
+			if edge.Type != EdgeTypeDependsOn {
+				targetNode.InDegree--
+			}
+			targetNode.IncomingEdges = removeEdgeFromList(targetNode.IncomingEdges, edge)
+		}
+		// For DependsOn edges, the current node (being removed) had its InDegree incremented
+		// This is handled implicitly since the node is being deleted
+	}
+
+	// Remove incoming edges
+	for _, edge := range node.IncomingEdges {
+		edgesToRemove = append(edgesToRemove, edge.ID)
+		// Update source node's outgoing edges and out-degree
+		if sourceNode, ok := g.Nodes[edge.FromNodeID]; ok {
+			sourceNode.OutDegree--
+			sourceNode.OutgoingEdges = removeEdgeFromList(sourceNode.OutgoingEdges, edge)
+			// For DependsOn edges, FROM node's InDegree was incremented
+			if edge.Type == EdgeTypeDependsOn {
+				sourceNode.InDegree--
+			}
 		}
 	}
 
+	// Remove edges from map
 	for _, edgeID := range edgesToRemove {
 		delete(g.Edges, edgeID)
 	}
@@ -260,8 +338,29 @@ func (g *Graph) RemoveNode(id string) error {
 }
 
 func (g *Graph) RemoveEdge(id string) error {
-	if _, exists := g.Edges[id]; !exists {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	edge, exists := g.Edges[id]
+	if !exists {
 		return fmt.Errorf("edge %s does not exist", id)
+	}
+
+	// Update adjacency lists and degree counts
+	if fromNode, ok := g.Nodes[edge.FromNodeID]; ok {
+		fromNode.OutDegree--
+		fromNode.OutgoingEdges = removeEdgeFromList(fromNode.OutgoingEdges, edge)
+		// For DependsOn edges, FROM node's InDegree was incremented
+		if edge.Type == EdgeTypeDependsOn {
+			fromNode.InDegree--
+		}
+	}
+	if toNode, ok := g.Nodes[edge.ToNodeID]; ok {
+		toNode.IncomingEdges = removeEdgeFromList(toNode.IncomingEdges, edge)
+		// For non-DependsOn edges, TO node's InDegree was incremented
+		if edge.Type != EdgeTypeDependsOn {
+			toNode.InDegree--
+		}
 	}
 
 	delete(g.Edges, id)
@@ -270,9 +369,22 @@ func (g *Graph) RemoveEdge(id string) error {
 	return nil
 }
 
+// removeEdgeFromList removes an edge from an adjacency list
+func removeEdgeFromList(edges []*Edge, edgeToRemove *Edge) []*Edge {
+	for i, edge := range edges {
+		if edge.ID == edgeToRemove.ID {
+			return append(edges[:i], edges[i+1:]...)
+		}
+	}
+	return edges
+}
+
 // UpdateNodeState updates the state of a node and propagates state changes upward
 func (g *Graph) UpdateNodeState(nodeID string, newState NodeState) error {
-	node, exists := g.GetNode(nodeID)
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	node, exists := g.Nodes[nodeID]
 	if !exists {
 		return fmt.Errorf("node %s does not exist", nodeID)
 	}
@@ -312,14 +424,16 @@ func (g *Graph) UpdateNodeState(nodeID string, newState NodeState) error {
 }
 
 // propagateFailureToParent propagates step failure to parent workflow
+// Note: This is called while holding the write lock, so access nodes directly
 func (g *Graph) propagateFailureToParent(stepID string) error {
 	for _, edge := range g.Edges {
 		if edge.Type == EdgeTypeContains && edge.ToNodeID == stepID {
-			// Found parent workflow
-			parentNode, exists := g.GetNode(edge.FromNodeID)
-			if exists && parentNode.State != NodeStateFailed {
-				parentNode.State = NodeStateFailed
-				parentNode.UpdatedAt = time.Now()
+			// Found parent workflow - access directly without lock (already held)
+			if parentNode, exists := g.Nodes[edge.FromNodeID]; exists {
+				if parentNode.State != NodeStateFailed {
+					parentNode.State = NodeStateFailed
+					parentNode.UpdatedAt = time.Now()
+				}
 			}
 			return nil
 		}
@@ -328,13 +442,16 @@ func (g *Graph) propagateFailureToParent(stepID string) error {
 }
 
 // updateContainedSteps updates state of child steps when workflow completes
+// Note: This is called while holding the write lock, so access nodes directly
 func (g *Graph) updateContainedSteps(workflowID string, oldState, newState NodeState) {
 	for _, edge := range g.Edges {
 		if edge.Type == EdgeTypeContains && edge.FromNodeID == workflowID {
-			stepNode, exists := g.GetNode(edge.ToNodeID)
-			if exists && stepNode.State == NodeStateRunning {
-				stepNode.State = newState
-				stepNode.UpdatedAt = time.Now()
+			// Access directly without lock (already held)
+			if stepNode, exists := g.Nodes[edge.ToNodeID]; exists {
+				if stepNode.State == NodeStateRunning {
+					stepNode.State = newState
+					stepNode.UpdatedAt = time.Now()
+				}
 			}
 		}
 	}
@@ -342,6 +459,9 @@ func (g *Graph) updateContainedSteps(workflowID string, oldState, newState NodeS
 
 // GetNodesByType returns all nodes of a specific type
 func (g *Graph) GetNodesByType(nodeType NodeType) []*Node {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+
 	nodes := make([]*Node, 0)
 	for _, node := range g.Nodes {
 		if node.Type == nodeType {
@@ -353,6 +473,9 @@ func (g *Graph) GetNodesByType(nodeType NodeType) []*Node {
 
 // GetNodesByState returns all nodes in a specific state
 func (g *Graph) GetNodesByState(state NodeState) []*Node {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+
 	nodes := make([]*Node, 0)
 	for _, node := range g.Nodes {
 		if node.State == state {
@@ -363,11 +486,20 @@ func (g *Graph) GetNodesByState(state NodeState) []*Node {
 }
 
 // GetChildSteps returns all step nodes contained by a workflow
+// Uses adjacency lists for O(D) instead of O(E)
 func (g *Graph) GetChildSteps(workflowID string) []*Node {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+
+	workflow, exists := g.Nodes[workflowID]
+	if !exists {
+		return []*Node{}
+	}
+
 	steps := make([]*Node, 0)
-	for _, edge := range g.Edges {
-		if edge.Type == EdgeTypeContains && edge.FromNodeID == workflowID {
-			if stepNode, exists := g.GetNode(edge.ToNodeID); exists {
+	for _, edge := range workflow.OutgoingEdges {
+		if edge.Type == EdgeTypeContains {
+			if stepNode, ok := g.Nodes[edge.ToNodeID]; ok {
 				steps = append(steps, stepNode)
 			}
 		}
@@ -376,10 +508,19 @@ func (g *Graph) GetChildSteps(workflowID string) []*Node {
 }
 
 // GetParentWorkflow returns the parent workflow of a step node
+// Uses adjacency lists for O(D) instead of O(E)
 func (g *Graph) GetParentWorkflow(stepID string) (*Node, error) {
-	for _, edge := range g.Edges {
-		if edge.Type == EdgeTypeContains && edge.ToNodeID == stepID {
-			if workflow, exists := g.GetNode(edge.FromNodeID); exists {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+
+	step, exists := g.Nodes[stepID]
+	if !exists {
+		return nil, fmt.Errorf("step %s does not exist", stepID)
+	}
+
+	for _, edge := range step.IncomingEdges {
+		if edge.Type == EdgeTypeContains {
+			if workflow, ok := g.Nodes[edge.FromNodeID]; ok {
 				return workflow, nil
 			}
 		}
