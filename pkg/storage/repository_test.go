@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -353,7 +354,7 @@ func TestRepository_EdgeToModel_WithProperties(t *testing.T) {
 
 	db, err := NewSQLiteConnection(tmpFile.Name())
 	require.NoError(t, err)
-	
+
 	err = AutoMigrate(db)
 	require.NoError(t, err)
 
@@ -361,7 +362,7 @@ func TestRepository_EdgeToModel_WithProperties(t *testing.T) {
 
 	// Create graph with edge properties
 	g := graph.NewGraph("test-app")
-	
+
 	n1 := &graph.Node{ID: "n1", Type: graph.NodeTypeWorkflow, Name: "Node 1"}
 	n2 := &graph.Node{ID: "n2", Type: graph.NodeTypeStep, Name: "Node 2"}
 	g.AddNode(n1)
@@ -391,4 +392,292 @@ func TestRepository_EdgeToModel_WithProperties(t *testing.T) {
 	assert.NotNil(t, loadedEdge.Properties)
 	assert.Equal(t, 1.5, loadedEdge.Properties["weight"])
 	assert.Equal(t, "test", loadedEdge.Properties["label"])
+}
+
+func TestRepository_LoadGraph_NoEdges(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "test-*.db")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	db, err := NewSQLiteConnection(tmpFile.Name())
+	require.NoError(t, err)
+
+	err = AutoMigrate(db)
+	require.NoError(t, err)
+
+	repo := NewRepository(db)
+
+	// Create graph with nodes but no edges
+	g := graph.NewGraph("test-app")
+	n1 := &graph.Node{ID: "n1", Type: graph.NodeTypeWorkflow, Name: "Workflow"}
+	n2 := &graph.Node{ID: "n2", Type: graph.NodeTypeStep, Name: "Step"}
+	g.AddNode(n1)
+	g.AddNode(n2)
+
+	err = repo.SaveGraph("test-app", g)
+	require.NoError(t, err)
+
+	loaded, err := repo.LoadGraph("test-app")
+	require.NoError(t, err)
+
+	assert.Len(t, loaded.Nodes, 2)
+	assert.Len(t, loaded.Edges, 0)
+}
+
+func TestRepository_LoadGraph_EmptyGraph(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "test-*.db")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	db, err := NewSQLiteConnection(tmpFile.Name())
+	require.NoError(t, err)
+
+	err = AutoMigrate(db)
+	require.NoError(t, err)
+
+	repo := NewRepository(db)
+
+	// Create completely empty graph
+	g := graph.NewGraph("test-app")
+
+	err = repo.SaveGraph("test-app", g)
+	require.NoError(t, err)
+
+	loaded, err := repo.LoadGraph("test-app")
+	require.NoError(t, err)
+
+	assert.Len(t, loaded.Nodes, 0)
+	assert.Len(t, loaded.Edges, 0)
+}
+
+func TestRepository_LoadGraph_SpecialCharactersInNames(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "test-*.db")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	db, err := NewSQLiteConnection(tmpFile.Name())
+	require.NoError(t, err)
+
+	err = AutoMigrate(db)
+	require.NoError(t, err)
+
+	repo := NewRepository(db)
+
+	// Create graph with special characters in names
+	g := graph.NewGraph("test-app")
+	node := &graph.Node{
+		ID:          "n1",
+		Type:        graph.NodeTypeWorkflow,
+		Name:        "Workflow with 'quotes' and \"double quotes\"",
+		Description: "Description with <html> & special chars: émojis 🚀",
+	}
+	g.AddNode(node)
+
+	err = repo.SaveGraph("test-app", g)
+	require.NoError(t, err)
+
+	loaded, err := repo.LoadGraph("test-app")
+	require.NoError(t, err)
+
+	loadedNode, exists := loaded.GetNode("n1")
+	assert.True(t, exists)
+	assert.Equal(t, "Workflow with 'quotes' and \"double quotes\"", loadedNode.Name)
+	assert.Equal(t, "Description with <html> & special chars: émojis 🚀", loadedNode.Description)
+}
+
+func TestRepository_NodeToModel_NilProperties(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "test-*.db")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	db, err := NewSQLiteConnection(tmpFile.Name())
+	require.NoError(t, err)
+
+	err = AutoMigrate(db)
+	require.NoError(t, err)
+
+	repo := NewRepository(db)
+
+	// Create graph with node that has nil properties
+	g := graph.NewGraph("test-app")
+	node := &graph.Node{
+		ID:         "n1",
+		Type:       graph.NodeTypeStep,
+		Name:       "Node without properties",
+		Properties: nil,
+	}
+	g.AddNode(node)
+
+	err = repo.SaveGraph("test-app", g)
+	require.NoError(t, err)
+
+	loaded, err := repo.LoadGraph("test-app")
+	require.NoError(t, err)
+
+	loadedNode, exists := loaded.GetNode("n1")
+	assert.True(t, exists)
+	// nil properties should be loaded as nil or empty map
+	assert.True(t, loadedNode.Properties == nil || len(loadedNode.Properties) == 0)
+}
+
+func TestRepository_NodeToModel_EmptyProperties(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "test-*.db")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	db, err := NewSQLiteConnection(tmpFile.Name())
+	require.NoError(t, err)
+
+	err = AutoMigrate(db)
+	require.NoError(t, err)
+
+	repo := NewRepository(db)
+
+	// Create graph with node that has empty properties map
+	g := graph.NewGraph("test-app")
+	node := &graph.Node{
+		ID:         "n1",
+		Type:       graph.NodeTypeStep,
+		Name:       "Node with empty properties",
+		Properties: map[string]interface{}{},
+	}
+	g.AddNode(node)
+
+	err = repo.SaveGraph("test-app", g)
+	require.NoError(t, err)
+
+	loaded, err := repo.LoadGraph("test-app")
+	require.NoError(t, err)
+
+	loadedNode, exists := loaded.GetNode("n1")
+	assert.True(t, exists)
+	assert.True(t, loadedNode.Properties == nil || len(loadedNode.Properties) == 0)
+}
+
+func TestRepository_EdgeToModel_NilProperties(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "test-*.db")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	db, err := NewSQLiteConnection(tmpFile.Name())
+	require.NoError(t, err)
+
+	err = AutoMigrate(db)
+	require.NoError(t, err)
+
+	repo := NewRepository(db)
+
+	// Create graph with edge that has nil properties
+	g := graph.NewGraph("test-app")
+	n1 := &graph.Node{ID: "n1", Type: graph.NodeTypeWorkflow, Name: "Node 1"}
+	n2 := &graph.Node{ID: "n2", Type: graph.NodeTypeStep, Name: "Node 2"}
+	g.AddNode(n1)
+	g.AddNode(n2)
+
+	edge := &graph.Edge{
+		ID:         "e1",
+		FromNodeID: "n1",
+		ToNodeID:   "n2",
+		Type:       graph.EdgeTypeContains,
+		Properties: nil,
+	}
+	g.AddEdge(edge)
+
+	err = repo.SaveGraph("test-app", g)
+	require.NoError(t, err)
+
+	loaded, err := repo.LoadGraph("test-app")
+	require.NoError(t, err)
+
+	loadedEdge, exists := loaded.Edges["e1"]
+	assert.True(t, exists)
+	assert.True(t, loadedEdge.Properties == nil || len(loadedEdge.Properties) == 0)
+}
+
+func TestRepository_ConcurrentLoadOperations(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "test-*.db")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	db, err := NewSQLiteConnection(tmpFile.Name())
+	require.NoError(t, err)
+
+	err = AutoMigrate(db)
+	require.NoError(t, err)
+
+	repo := NewRepository(db)
+
+	// Create test graph
+	g := graph.NewGraph("test-app")
+	for i := 0; i < 10; i++ {
+		node := &graph.Node{
+			ID:   fmt.Sprintf("n%d", i),
+			Type: graph.NodeTypeStep,
+			Name: fmt.Sprintf("Node %d", i),
+		}
+		g.AddNode(node)
+	}
+
+	err = repo.SaveGraph("test-app", g)
+	require.NoError(t, err)
+
+	// Concurrent load operations
+	const numGoroutines = 5
+	errChan := make(chan error, numGoroutines)
+
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			loaded, err := repo.LoadGraph("test-app")
+			if err != nil {
+				errChan <- err
+				return
+			}
+			if len(loaded.Nodes) != 10 {
+				errChan <- fmt.Errorf("expected 10 nodes, got %d", len(loaded.Nodes))
+				return
+			}
+			errChan <- nil
+		}()
+	}
+
+	for i := 0; i < numGoroutines; i++ {
+		err := <-errChan
+		assert.NoError(t, err)
+	}
+}
+
+func TestRepository_CreateGraphRun_AppNotFound(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "test-*.db")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	db, err := NewSQLiteConnection(tmpFile.Name())
+	require.NoError(t, err)
+
+	err = AutoMigrate(db)
+	require.NoError(t, err)
+
+	repo := NewRepository(db)
+
+	// Try to create run for non-existent app
+	_, err = repo.CreateGraphRun("non-existent-app", 1)
+	assert.Error(t, err)
+}
+
+func TestRepository_GetGraphRuns_AppNotFound(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "test-*.db")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	db, err := NewSQLiteConnection(tmpFile.Name())
+	require.NoError(t, err)
+
+	err = AutoMigrate(db)
+	require.NoError(t, err)
+
+	repo := NewRepository(db)
+
+	// Try to get runs for non-existent app
+	_, err = repo.GetGraphRuns("non-existent-app")
+	assert.Error(t, err)
 }

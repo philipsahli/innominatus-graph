@@ -358,3 +358,339 @@ type MockObserver struct {
 func (m *MockObserver) OnNodeStateChange(node *graph.Node, oldState, newState graph.NodeState) {
 	m.Called(node, oldState, newState)
 }
+
+func TestEngine_ExecuteGraph_LoadGraphFailure(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockRunner := &MockWorkflowRunnerTest{}
+
+	mockRepo.On("LoadGraph", "test-app").Return((*graph.Graph)(nil), assert.AnError)
+
+	engine := NewEngine(mockRepo, mockRunner)
+
+	_, err := engine.ExecuteGraph("test-app")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to load graph")
+
+	mockRepo.AssertExpectations(t)
+}
+
+func TestEngine_ExecuteGraph_TopologicalSortFailure(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockRunner := &MockWorkflowRunnerTest{}
+
+	// Create a cyclic graph
+	g := graph.NewGraph("test-app")
+	g.AddNode(&graph.Node{ID: "A", Type: graph.NodeTypeStep, Name: "A"})
+	g.AddNode(&graph.Node{ID: "B", Type: graph.NodeTypeStep, Name: "B"})
+	g.AddEdge(&graph.Edge{ID: "e1", FromNodeID: "A", ToNodeID: "B", Type: graph.EdgeTypeDependsOn})
+	g.AddEdge(&graph.Edge{ID: "e2", FromNodeID: "B", ToNodeID: "A", Type: graph.EdgeTypeDependsOn})
+
+	mockRepo.On("LoadGraph", "test-app").Return(g, nil)
+
+	engine := NewEngine(mockRepo, mockRunner)
+
+	_, err := engine.ExecuteGraph("test-app")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "topologically")
+
+	mockRepo.AssertExpectations(t)
+}
+
+func TestEngine_ExecuteGraph_CreateGraphRunFailure(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockRunner := &MockWorkflowRunnerTest{}
+
+	g := graph.NewGraph("test-app")
+	g.AddNode(&graph.Node{ID: "n1", Type: graph.NodeTypeWorkflow, Name: "Test"})
+
+	mockRepo.On("LoadGraph", "test-app").Return(g, nil)
+	mockRepo.On("CreateGraphRun", "test-app", g.Version).Return((*storage.GraphRunModel)(nil), assert.AnError)
+
+	engine := NewEngine(mockRepo, mockRunner)
+
+	_, err := engine.ExecuteGraph("test-app")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to create graph run")
+
+	mockRepo.AssertExpectations(t)
+}
+
+func TestEngine_ExecuteGraph_EmptyGraph(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockRunner := &MockWorkflowRunnerTest{}
+
+	g := graph.NewGraph("test-app")
+
+	mockRepo.On("LoadGraph", "test-app").Return(g, nil)
+
+	runModel := &storage.GraphRunModel{ID: uuid.New()}
+	mockRepo.On("CreateGraphRun", "test-app", mock.AnythingOfType("int")).Return(runModel, nil)
+	mockRepo.On("UpdateGraphRun", runModel.ID, "running", (*string)(nil)).Return(nil)
+	mockRepo.On("UpdateGraphRun", runModel.ID, "completed", (*string)(nil)).Return(nil)
+
+	engine := NewEngine(mockRepo, mockRunner)
+
+	plan, err := engine.ExecuteGraph("test-app")
+	require.NoError(t, err)
+
+	assert.Equal(t, StatusCompleted, plan.Status)
+	assert.Len(t, plan.Executions, 0)
+
+	mockRepo.AssertExpectations(t)
+}
+
+func TestEngine_ExecuteGraph_UnknownNodeType(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockRunner := &MockWorkflowRunnerTest{}
+
+	g := graph.NewGraph("test-app")
+	g.AddNode(&graph.Node{ID: "n1", Type: graph.NodeType("unknown"), Name: "Unknown"})
+
+	mockRepo.On("LoadGraph", "test-app").Return(g, nil)
+
+	runModel := &storage.GraphRunModel{ID: uuid.New()}
+	mockRepo.On("CreateGraphRun", "test-app", mock.AnythingOfType("int")).Return(runModel, nil)
+	mockRepo.On("UpdateGraphRun", runModel.ID, "running", (*string)(nil)).Return(nil)
+	mockRepo.On("UpdateGraphRun", runModel.ID, "failed", mock.AnythingOfType("*string")).Return(nil)
+
+	engine := NewEngine(mockRepo, mockRunner)
+
+	plan, err := engine.ExecuteGraph("test-app")
+	require.NoError(t, err)
+
+	assert.Equal(t, StatusFailed, plan.Status)
+
+	nodeExec := plan.Executions["n1"]
+	assert.Equal(t, StatusFailed, nodeExec.Status)
+	assert.Contains(t, nodeExec.Error, "unknown node type")
+
+	mockRepo.AssertExpectations(t)
+}
+
+func TestEngine_ExecuteResource_NoProvisioners(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockRunner := &MockWorkflowRunnerTest{}
+
+	g := graph.NewGraph("test-app")
+	// Resource with no provisioners
+	g.AddNode(&graph.Node{ID: "res1", Type: graph.NodeTypeResource, Name: "External Resource"})
+
+	mockRepo.On("LoadGraph", "test-app").Return(g, nil)
+
+	runModel := &storage.GraphRunModel{ID: uuid.New()}
+	mockRepo.On("CreateGraphRun", "test-app", mock.AnythingOfType("int")).Return(runModel, nil)
+	mockRepo.On("UpdateGraphRun", runModel.ID, "running", (*string)(nil)).Return(nil)
+	mockRepo.On("UpdateGraphRun", runModel.ID, "completed", (*string)(nil)).Return(nil)
+
+	engine := NewEngine(mockRepo, mockRunner)
+
+	plan, err := engine.ExecuteGraph("test-app")
+	require.NoError(t, err)
+
+	assert.Equal(t, StatusCompleted, plan.Status)
+
+	resExec := plan.Executions["res1"]
+	assert.Equal(t, StatusCompleted, resExec.Status)
+
+	// Check for "No provisioners found" log
+	found := false
+	for _, log := range resExec.Logs {
+		if log == "No provisioners found - resource may be external" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "Expected log about no provisioners")
+
+	mockRepo.AssertExpectations(t)
+}
+
+func TestEngine_ExecuteResource_WithProvisioners(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockRunner := &MockWorkflowRunnerTest{}
+
+	g := graph.NewGraph("test-app")
+	g.AddNode(&graph.Node{ID: "wf1", Type: graph.NodeTypeWorkflow, Name: "Deploy"})
+	g.AddNode(&graph.Node{ID: "res1", Type: graph.NodeTypeResource, Name: "Database"})
+	g.AddEdge(&graph.Edge{ID: "e1", FromNodeID: "wf1", ToNodeID: "res1", Type: graph.EdgeTypeProvisions})
+
+	g.Version = 1
+	mockRepo.On("LoadGraph", "test-app").Return(g, nil)
+
+	runModel := &storage.GraphRunModel{ID: uuid.New()}
+	mockRepo.On("CreateGraphRun", "test-app", 1).Return(runModel, nil)
+	mockRepo.On("UpdateGraphRun", runModel.ID, "running", (*string)(nil)).Return(nil)
+	mockRepo.On("UpdateGraphRun", runModel.ID, "completed", (*string)(nil)).Return(nil)
+
+	mockRunner.On("RunWorkflow", mock.AnythingOfType("*graph.Node")).Return(nil)
+	mockRunner.On("ProvisionResource", mock.AnythingOfType("*graph.Node"), mock.AnythingOfType("*graph.Node")).Return(nil)
+
+	engine := NewEngine(mockRepo, mockRunner)
+
+	plan, err := engine.ExecuteGraph("test-app")
+	require.NoError(t, err)
+
+	assert.Equal(t, StatusCompleted, plan.Status)
+
+	resExec := plan.Executions["res1"]
+	assert.Equal(t, StatusCompleted, resExec.Status)
+
+	// Check for provisioners log
+	found := false
+	for _, log := range resExec.Logs {
+		if log == "Resource provisioned by 1 workflow(s)" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "Expected log about provisioners")
+
+	mockRepo.AssertExpectations(t)
+	mockRunner.AssertExpectations(t)
+}
+
+func TestEngine_MultipleObservers(t *testing.T) {
+	engine := NewEngine(nil, nil)
+
+	observer1 := &MockObserver{}
+	observer2 := &MockObserver{}
+	observer3 := &MockObserver{}
+
+	engine.RegisterObserver(observer1)
+	engine.RegisterObserver(observer2)
+	engine.RegisterObserver(observer3)
+
+	assert.Len(t, engine.observers, 3)
+
+	node := &graph.Node{ID: "n1", Type: graph.NodeTypeStep, Name: "Test"}
+
+	observer1.On("OnNodeStateChange", node, graph.NodeStateWaiting, graph.NodeStateRunning).Return()
+	observer2.On("OnNodeStateChange", node, graph.NodeStateWaiting, graph.NodeStateRunning).Return()
+	observer3.On("OnNodeStateChange", node, graph.NodeStateWaiting, graph.NodeStateRunning).Return()
+
+	engine.notifyStateChange(node, graph.NodeStateWaiting, graph.NodeStateRunning)
+
+	observer1.AssertExpectations(t)
+	observer2.AssertExpectations(t)
+	observer3.AssertExpectations(t)
+}
+
+func TestEngine_ObserverNotificationOnFailure(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockRunner := &MockWorkflowRunnerTest{}
+
+	g := graph.NewGraph("test-app")
+	g.AddNode(&graph.Node{ID: "wf1", Type: graph.NodeTypeWorkflow, Name: "Failing Workflow"})
+
+	mockRepo.On("LoadGraph", "test-app").Return(g, nil)
+
+	runModel := &storage.GraphRunModel{ID: uuid.New()}
+	mockRepo.On("CreateGraphRun", "test-app", mock.AnythingOfType("int")).Return(runModel, nil)
+	mockRepo.On("UpdateGraphRun", runModel.ID, "running", (*string)(nil)).Return(nil)
+	mockRepo.On("UpdateGraphRun", runModel.ID, "failed", mock.AnythingOfType("*string")).Return(nil)
+
+	mockRunner.On("RunWorkflow", mock.AnythingOfType("*graph.Node")).Return(assert.AnError)
+
+	observer := &MockObserver{}
+	// Expect state change to running (oldState is whatever it was before, could be waiting)
+	observer.On("OnNodeStateChange", mock.AnythingOfType("*graph.Node"), mock.AnythingOfType("graph.NodeState"), graph.NodeStateRunning).Return()
+	// Expect state change to failed
+	observer.On("OnNodeStateChange", mock.AnythingOfType("*graph.Node"), graph.NodeStateRunning, graph.NodeStateFailed).Return()
+
+	engine := NewEngine(mockRepo, mockRunner)
+	engine.RegisterObserver(observer)
+
+	plan, err := engine.ExecuteGraph("test-app")
+	require.NoError(t, err)
+
+	assert.Equal(t, StatusFailed, plan.Status)
+
+	observer.AssertExpectations(t)
+	mockRepo.AssertExpectations(t)
+	mockRunner.AssertExpectations(t)
+}
+
+func TestEngine_ProvisionResourceFailure(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockRunner := &MockWorkflowRunnerTest{}
+
+	g := graph.NewGraph("test-app")
+	g.AddNode(&graph.Node{ID: "wf1", Type: graph.NodeTypeWorkflow, Name: "Deploy"})
+	g.AddNode(&graph.Node{ID: "res1", Type: graph.NodeTypeResource, Name: "Database"})
+	g.AddEdge(&graph.Edge{ID: "e1", FromNodeID: "wf1", ToNodeID: "res1", Type: graph.EdgeTypeProvisions})
+
+	g.Version = 1
+	mockRepo.On("LoadGraph", "test-app").Return(g, nil)
+
+	runModel := &storage.GraphRunModel{ID: uuid.New()}
+	mockRepo.On("CreateGraphRun", "test-app", 1).Return(runModel, nil)
+	mockRepo.On("UpdateGraphRun", runModel.ID, "running", (*string)(nil)).Return(nil)
+	mockRepo.On("UpdateGraphRun", runModel.ID, "failed", mock.AnythingOfType("*string")).Return(nil)
+
+	mockRunner.On("RunWorkflow", mock.AnythingOfType("*graph.Node")).Return(nil)
+	mockRunner.On("ProvisionResource", mock.AnythingOfType("*graph.Node"), mock.AnythingOfType("*graph.Node")).Return(assert.AnError)
+
+	engine := NewEngine(mockRepo, mockRunner)
+
+	plan, err := engine.ExecuteGraph("test-app")
+	require.NoError(t, err)
+
+	assert.Equal(t, StatusFailed, plan.Status)
+
+	wfExec := plan.Executions["wf1"]
+	assert.Equal(t, StatusFailed, wfExec.Status)
+	assert.Contains(t, wfExec.Error, "resource provisioning failed")
+
+	mockRepo.AssertExpectations(t)
+	mockRunner.AssertExpectations(t)
+}
+
+func TestEngine_CreateResourceFailure(t *testing.T) {
+	mockRepo := &MockRepository{}
+	mockRunner := &MockWorkflowRunnerTest{}
+
+	g := graph.NewGraph("test-app")
+	g.AddNode(&graph.Node{ID: "wf1", Type: graph.NodeTypeWorkflow, Name: "Deploy"})
+	g.AddNode(&graph.Node{ID: "res1", Type: graph.NodeTypeResource, Name: "Database"})
+	g.AddEdge(&graph.Edge{ID: "e1", FromNodeID: "wf1", ToNodeID: "res1", Type: graph.EdgeTypeCreates})
+
+	g.Version = 1
+	mockRepo.On("LoadGraph", "test-app").Return(g, nil)
+
+	runModel := &storage.GraphRunModel{ID: uuid.New()}
+	mockRepo.On("CreateGraphRun", "test-app", 1).Return(runModel, nil)
+	mockRepo.On("UpdateGraphRun", runModel.ID, "running", (*string)(nil)).Return(nil)
+	mockRepo.On("UpdateGraphRun", runModel.ID, "failed", mock.AnythingOfType("*string")).Return(nil)
+
+	mockRunner.On("RunWorkflow", mock.AnythingOfType("*graph.Node")).Return(nil)
+	mockRunner.On("CreateResource", mock.AnythingOfType("*graph.Node"), mock.AnythingOfType("*graph.Node")).Return(assert.AnError)
+
+	engine := NewEngine(mockRepo, mockRunner)
+
+	plan, err := engine.ExecuteGraph("test-app")
+	require.NoError(t, err)
+
+	assert.Equal(t, StatusFailed, plan.Status)
+
+	wfExec := plan.Executions["wf1"]
+	assert.Equal(t, StatusFailed, wfExec.Status)
+	assert.Contains(t, wfExec.Error, "resource creation failed")
+
+	mockRepo.AssertExpectations(t)
+	mockRunner.AssertExpectations(t)
+}
+
+func TestEngine_shouldExecuteNode_GetDependenciesError(t *testing.T) {
+	g := graph.NewGraph("test-app")
+	engine := NewEngine(nil, nil)
+
+	plan := &ExecutionPlan{
+		Executions: map[string]*NodeExecution{},
+	}
+
+	// Node that doesn't exist in graph
+	node := &graph.Node{ID: "nonexistent", Type: graph.NodeTypeStep, Name: "Nonexistent"}
+
+	shouldExecute := engine.shouldExecuteNode(node, plan, g)
+	assert.False(t, shouldExecute)
+}
