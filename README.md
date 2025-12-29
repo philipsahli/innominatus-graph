@@ -1,5 +1,7 @@
 # Innominatus Graph SDK
 
+[![CI](https://github.com/philipsahli/innominatus-graph/actions/workflows/ci.yml/badge.svg)](https://github.com/philipsahli/innominatus-graph/actions/workflows/ci.yml)
+
 Go SDK for IDP workflows as directed acyclic graphs with state management and persistence.
 
 **Performance-optimized** with O(N+E) algorithms, thread-safe concurrent access, and sub-millisecond operations for 1000+ node graphs.
