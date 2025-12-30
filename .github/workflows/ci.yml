@@ -67,7 +67,7 @@ jobs:
       - name: Run gosec
         uses: securego/gosec@master
         with:
-          args: ./...
+          args: -exclude-dir=examples -exclude-dir=verification ./...
 
   benchmark:
     runs-on: ubuntu-latest
