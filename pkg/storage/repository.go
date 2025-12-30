@@ -20,8 +20,6 @@ func NewRepository(db *gorm.DB) *Repository {
 }
 
 func (r *Repository) SaveGraph(appName string, g *graph.Graph) error {
-	fmt.Printf("📊 SaveGraph: Starting for app=%s, nodes=%d, edges=%d\n", appName, len(g.Nodes), len(g.Edges))
-
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		var app App
 		err := tx.Where("name = ?", appName).First(&app).Error
@@ -31,12 +29,9 @@ func (r *Repository) SaveGraph(appName string, g *graph.Graph) error {
 				if err := tx.Create(&app).Error; err != nil {
 					return fmt.Errorf("failed to create app: %w", err)
 				}
-				fmt.Printf("📊 SaveGraph: Created new app %s (ID: %s)\n", appName, app.ID)
 			} else {
 				return fmt.Errorf("failed to find app: %w", err)
 			}
-		} else {
-			fmt.Printf("📊 SaveGraph: Found existing app %s (ID: %s)\n", appName, app.ID)
 		}
 
 		// Delete existing edges and nodes
@@ -44,16 +39,13 @@ func (r *Repository) SaveGraph(appName string, g *graph.Graph) error {
 		if edgeDeleteResult.Error != nil {
 			return fmt.Errorf("failed to delete existing edges: %w", edgeDeleteResult.Error)
 		}
-		fmt.Printf("📊 SaveGraph: Deleted %d existing edges\n", edgeDeleteResult.RowsAffected)
 
 		nodeDeleteResult := tx.Where("app_id = ?", app.ID).Delete(&NodeModel{})
 		if nodeDeleteResult.Error != nil {
 			return fmt.Errorf("failed to delete existing nodes: %w", nodeDeleteResult.Error)
 		}
-		fmt.Printf("📊 SaveGraph: Deleted %d existing nodes\n", nodeDeleteResult.RowsAffected)
 
 		// Create nodes
-		nodeCount := 0
 		for _, node := range g.Nodes {
 			nodeModel, err := r.nodeToModel(node, app.ID)
 			if err != nil {
@@ -62,12 +54,9 @@ func (r *Repository) SaveGraph(appName string, g *graph.Graph) error {
 			if err := tx.Create(&nodeModel).Error; err != nil {
 				return fmt.Errorf("failed to save node %s: %w", node.ID, err)
 			}
-			nodeCount++
 		}
-		fmt.Printf("📊 SaveGraph: Created %d nodes\n", nodeCount)
 
 		// Create edges
-		edgeCount := 0
 		for _, edge := range g.Edges {
 			edgeModel, err := r.edgeToModel(edge, app.ID)
 			if err != nil {
@@ -76,11 +65,8 @@ func (r *Repository) SaveGraph(appName string, g *graph.Graph) error {
 			if err := tx.Create(&edgeModel).Error; err != nil {
 				return fmt.Errorf("failed to save edge %s: %w", edge.ID, err)
 			}
-			edgeCount++
 		}
-		fmt.Printf("📊 SaveGraph: Created %d edges\n", edgeCount)
 
-		fmt.Printf("📊 SaveGraph: SUCCESS for app=%s\n", appName)
 		return nil
 	})
 }

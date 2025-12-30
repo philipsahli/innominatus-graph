@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func createTestGraph() *graph.Graph {
+func createTestGraph(t *testing.T) *graph.Graph {
 	g := graph.NewGraph("test-app")
 
 	nodes := []*graph.Node{
@@ -19,7 +19,7 @@ func createTestGraph() *graph.Graph {
 	}
 
 	for _, node := range nodes {
-		require.NoError(nil, g.AddNode(node))
+		require.NoError(t, g.AddNode(node))
 	}
 
 	edges := []*graph.Edge{
@@ -28,7 +28,7 @@ func createTestGraph() *graph.Graph {
 	}
 
 	for _, edge := range edges {
-		require.NoError(nil, g.AddEdge(edge))
+		require.NoError(t, g.AddEdge(edge))
 	}
 
 	return g
@@ -38,7 +38,7 @@ func TestExporter_generateDOT(t *testing.T) {
 	exporter := NewExporter()
 	defer exporter.Close()
 
-	g := createTestGraph()
+	g := createTestGraph(t)
 	dotContent, err := exporter.generateDOT(g)
 	require.NoError(t, err)
 
@@ -60,7 +60,7 @@ func TestExporter_ExportGraph_DOT(t *testing.T) {
 	exporter := NewExporter()
 	defer exporter.Close()
 
-	g := createTestGraph()
+	g := createTestGraph(t)
 	data, err := exporter.ExportGraph(g, FormatDOT)
 	require.NoError(t, err)
 
@@ -73,7 +73,7 @@ func TestExporter_ExportGraph_SVG(t *testing.T) {
 	exporter := NewExporter()
 	defer exporter.Close()
 
-	g := createTestGraph()
+	g := createTestGraph(t)
 	data, err := exporter.ExportGraph(g, FormatSVG)
 	require.NoError(t, err)
 
@@ -86,7 +86,7 @@ func TestExporter_ExportGraph_PNG(t *testing.T) {
 	exporter := NewExporter()
 	defer exporter.Close()
 
-	g := createTestGraph()
+	g := createTestGraph(t)
 	data, err := exporter.ExportGraph(g, FormatPNG)
 	require.NoError(t, err)
 
@@ -99,7 +99,7 @@ func TestExporter_ExportGraph_UnsupportedFormat(t *testing.T) {
 	exporter := NewExporter()
 	defer exporter.Close()
 
-	g := createTestGraph()
+	g := createTestGraph(t)
 	_, err := exporter.ExportGraph(g, Format("invalid"))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unsupported format")
@@ -196,7 +196,7 @@ func TestExporter_CreateSubgraph(t *testing.T) {
 	exporter := NewExporter()
 	defer exporter.Close()
 
-	g := createTestGraph()
+	g := createTestGraph(t)
 	nodeIDs := []string{"spec1", "workflow1"}
 
 	subgraph, err := exporter.CreateSubgraph(g, nodeIDs)
@@ -225,7 +225,7 @@ func TestExporter_CreateSubgraph_EmptyNodeList(t *testing.T) {
 	exporter := NewExporter()
 	defer exporter.Close()
 
-	g := createTestGraph()
+	g := createTestGraph(t)
 	nodeIDs := []string{}
 
 	subgraph, err := exporter.CreateSubgraph(g, nodeIDs)
@@ -239,7 +239,7 @@ func TestExporter_CreateSubgraph_NonExistentNode(t *testing.T) {
 	exporter := NewExporter()
 	defer exporter.Close()
 
-	g := createTestGraph()
+	g := createTestGraph(t)
 	nodeIDs := []string{"spec1", "missing"}
 
 	subgraph, err := exporter.CreateSubgraph(g, nodeIDs)

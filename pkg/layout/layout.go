@@ -22,7 +22,8 @@ const (
 	LayoutHierarchical LayoutType = "hierarchical"
 	// LayoutRadial arranges nodes in concentric circles
 	LayoutRadial LayoutType = "radial"
-	// LayoutForce uses force-directed algorithm
+	// LayoutForce uses force-directed algorithm.
+	// WARNING: O(N²) complexity per iteration - not recommended for graphs with >100 nodes.
 	LayoutForce LayoutType = "force"
 	// LayoutGrid arranges nodes in a grid
 	LayoutGrid LayoutType = "grid"

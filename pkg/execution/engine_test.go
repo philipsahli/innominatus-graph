@@ -68,7 +68,7 @@ func (m *MockWorkflowRunnerTest) CreateResource(workflow *graph.Node, target *gr
 	return args.Error(0)
 }
 
-func createTestGraphForExecution() *graph.Graph {
+func createTestGraphForExecution(t *testing.T) *graph.Graph {
 	g := graph.NewGraph("test-app")
 
 	nodes := []*graph.Node{
@@ -80,7 +80,7 @@ func createTestGraphForExecution() *graph.Graph {
 	}
 
 	for _, node := range nodes {
-		require.NoError(nil, g.AddNode(node))
+		require.NoError(t, g.AddNode(node))
 	}
 
 	edges := []*graph.Edge{
@@ -91,7 +91,7 @@ func createTestGraphForExecution() *graph.Graph {
 	}
 
 	for _, edge := range edges {
-		require.NoError(nil, g.AddEdge(edge))
+		require.NoError(t, g.AddEdge(edge))
 	}
 
 	return g
@@ -101,7 +101,7 @@ func TestEngine_ExecuteGraph_Success(t *testing.T) {
 	mockRepo := &MockRepository{}
 	mockRunner := &MockWorkflowRunnerTest{}
 
-	g := createTestGraphForExecution()
+	g := createTestGraphForExecution(t)
 	mockRepo.On("LoadGraph", "test-app").Return(g, nil)
 
 	runModel := &storage.GraphRunModel{ID: uuid.New()}
@@ -138,7 +138,7 @@ func TestEngine_ExecuteGraph_WorkflowFailure(t *testing.T) {
 	mockRepo := &MockRepository{}
 	mockRunner := &MockWorkflowRunnerTest{}
 
-	g := createTestGraphForExecution()
+	g := createTestGraphForExecution(t)
 	mockRepo.On("LoadGraph", "test-app").Return(g, nil)
 
 	runModel := &storage.GraphRunModel{ID: uuid.New()}
@@ -173,7 +173,7 @@ func TestEngine_ExecuteGraph_WorkflowFailure(t *testing.T) {
 }
 
 func TestEngine_shouldExecuteNode(t *testing.T) {
-	g := createTestGraphForExecution()
+	g := createTestGraphForExecution(t)
 	engine := NewEngine(nil, nil)
 
 	plan := &ExecutionPlan{
