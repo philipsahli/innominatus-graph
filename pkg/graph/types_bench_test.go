@@ -7,7 +7,7 @@ import (
 
 func BenchmarkAddNode(b *testing.B) {
 	g := NewGraph("bench")
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		node := &Node{
@@ -21,7 +21,7 @@ func BenchmarkAddNode(b *testing.B) {
 
 func BenchmarkGetNode(b *testing.B) {
 	g := NewGraph("bench")
-	
+
 	// Setup: Add 1000 nodes
 	for i := 0; i < 1000; i++ {
 		node := &Node{
@@ -31,7 +31,7 @@ func BenchmarkGetNode(b *testing.B) {
 		}
 		g.AddNode(node)
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		g.GetNode(fmt.Sprintf("node-%d", i%1000))
@@ -40,13 +40,13 @@ func BenchmarkGetNode(b *testing.B) {
 
 func BenchmarkAddEdge(b *testing.B) {
 	g := NewGraph("bench")
-	
+
 	// Setup: Add nodes
 	from := &Node{ID: "workflow", Type: NodeTypeWorkflow, Name: "Workflow"}
 	to := &Node{ID: "step", Type: NodeTypeStep, Name: "Step"}
 	g.AddNode(from)
 	g.AddNode(to)
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		edge := &Edge{
@@ -61,7 +61,7 @@ func BenchmarkAddEdge(b *testing.B) {
 
 func BenchmarkUpdateNodeState(b *testing.B) {
 	g := NewGraph("bench")
-	
+
 	// Setup: Add node
 	node := &Node{
 		ID:    "test-node",
@@ -70,7 +70,7 @@ func BenchmarkUpdateNodeState(b *testing.B) {
 		State: NodeStateWaiting,
 	}
 	g.AddNode(node)
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		// Alternate states
@@ -84,7 +84,7 @@ func BenchmarkUpdateNodeState(b *testing.B) {
 
 func BenchmarkGetNodesByType(b *testing.B) {
 	g := NewGraph("bench")
-	
+
 	// Setup: Add 100 nodes of mixed types
 	for i := 0; i < 100; i++ {
 		nodeType := NodeTypeStep
@@ -95,7 +95,7 @@ func BenchmarkGetNodesByType(b *testing.B) {
 		} else if i%4 == 2 {
 			nodeType = NodeTypeResource
 		}
-		
+
 		node := &Node{
 			ID:   fmt.Sprintf("node-%d", i),
 			Type: nodeType,
@@ -103,7 +103,7 @@ func BenchmarkGetNodesByType(b *testing.B) {
 		}
 		g.AddNode(node)
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		g.GetNodesByType(NodeTypeWorkflow)
@@ -112,7 +112,7 @@ func BenchmarkGetNodesByType(b *testing.B) {
 
 func BenchmarkGetNodesByState(b *testing.B) {
 	g := NewGraph("bench")
-	
+
 	// Setup: Add 100 nodes with mixed states
 	for i := 0; i < 100; i++ {
 		state := NodeStateWaiting
@@ -121,7 +121,7 @@ func BenchmarkGetNodesByState(b *testing.B) {
 		} else if i%3 == 1 {
 			state = NodeStateSucceeded
 		}
-		
+
 		node := &Node{
 			ID:    fmt.Sprintf("node-%d", i),
 			Type:  NodeTypeStep,
@@ -130,7 +130,7 @@ func BenchmarkGetNodesByState(b *testing.B) {
 		}
 		g.AddNode(node)
 	}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		g.GetNodesByState(NodeStateRunning)
@@ -141,7 +141,7 @@ func BenchmarkLargeGraph_100Nodes(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		g := NewGraph("bench")
-		
+
 		// Add 100 nodes
 		for j := 0; j < 100; j++ {
 			node := &Node{
@@ -151,7 +151,7 @@ func BenchmarkLargeGraph_100Nodes(b *testing.B) {
 			}
 			g.AddNode(node)
 		}
-		
+
 		// Add 99 edges (linear chain)
 		for j := 1; j < 100; j++ {
 			edge := &Edge{
@@ -169,7 +169,7 @@ func BenchmarkLargeGraph_1000Nodes(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		g := NewGraph("bench")
-		
+
 		// Add 1000 nodes
 		for j := 0; j < 1000; j++ {
 			node := &Node{
@@ -179,7 +179,7 @@ func BenchmarkLargeGraph_1000Nodes(b *testing.B) {
 			}
 			g.AddNode(node)
 		}
-		
+
 		// Add 999 edges (linear chain)
 		for j := 1; j < 1000; j++ {
 			edge := &Edge{

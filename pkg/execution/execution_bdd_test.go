@@ -13,15 +13,15 @@ import (
 
 // MockRunner implements WorkflowRunner for testing
 type MockRunner struct {
-	WorkflowCalls    []string
-	ProvisionCalls   []string
-	CreateCalls      []string
-	ShouldFail       bool
-	FailOn           string
-	ProvisionFail    bool
-	CreateFail       bool
-	StepCalls        []string
-	StepImplemented  bool
+	WorkflowCalls   []string
+	ProvisionCalls  []string
+	CreateCalls     []string
+	ShouldFail      bool
+	FailOn          string
+	ProvisionFail   bool
+	CreateFail      bool
+	StepCalls       []string
+	StepImplemented bool
 }
 
 func NewMockRunner() *MockRunner {

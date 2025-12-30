@@ -17,7 +17,7 @@ func TestRepository_SaveAndLoadGraph(t *testing.T) {
 
 	db, err := NewSQLiteConnection(tmpFile.Name())
 	require.NoError(t, err)
-	
+
 	err = AutoMigrate(db)
 	require.NoError(t, err)
 
@@ -25,7 +25,7 @@ func TestRepository_SaveAndLoadGraph(t *testing.T) {
 
 	// Create test graph
 	g := graph.NewGraph("test-app")
-	
+
 	workflow := &graph.Node{
 		ID:          "wf-1",
 		Type:        graph.NodeTypeWorkflow,
@@ -67,7 +67,7 @@ func TestRepository_SaveAndLoadGraph(t *testing.T) {
 
 	// Verify nodes
 	assert.Len(t, loaded.Nodes, 2)
-	
+
 	loadedWorkflow, exists := loaded.GetNode("wf-1")
 	assert.True(t, exists)
 	assert.Equal(t, "Test Workflow", loadedWorkflow.Name)
@@ -94,7 +94,7 @@ func TestRepository_SaveGraph_UpdatesExisting(t *testing.T) {
 
 	db, err := NewSQLiteConnection(tmpFile.Name())
 	require.NoError(t, err)
-	
+
 	err = AutoMigrate(db)
 	require.NoError(t, err)
 
@@ -108,7 +108,7 @@ func TestRepository_SaveGraph_UpdatesExisting(t *testing.T) {
 		Name: "Original",
 	}
 	g1.AddNode(node1)
-	
+
 	err = repo.SaveGraph("test-app", g1)
 	require.NoError(t, err)
 
@@ -120,14 +120,14 @@ func TestRepository_SaveGraph_UpdatesExisting(t *testing.T) {
 		Name: "Updated",
 	}
 	g2.AddNode(node2)
-	
+
 	err = repo.SaveGraph("test-app", g2)
 	require.NoError(t, err)
 
 	// Load and verify only updated graph exists
 	loaded, err := repo.LoadGraph("test-app")
 	require.NoError(t, err)
-	
+
 	assert.Len(t, loaded.Nodes, 1)
 	_, exists := loaded.GetNode("n2")
 	assert.True(t, exists)
@@ -142,7 +142,7 @@ func TestRepository_LoadGraph_NotFound(t *testing.T) {
 
 	db, err := NewSQLiteConnection(tmpFile.Name())
 	require.NoError(t, err)
-	
+
 	err = AutoMigrate(db)
 	require.NoError(t, err)
 
@@ -161,7 +161,7 @@ func TestRepository_UpdateNodeState(t *testing.T) {
 
 	db, err := NewSQLiteConnection(tmpFile.Name())
 	require.NoError(t, err)
-	
+
 	err = AutoMigrate(db)
 	require.NoError(t, err)
 
@@ -176,7 +176,7 @@ func TestRepository_UpdateNodeState(t *testing.T) {
 		State: graph.NodeStateWaiting,
 	}
 	g.AddNode(node)
-	
+
 	err = repo.SaveGraph("test-app", g)
 	require.NoError(t, err)
 
@@ -187,7 +187,7 @@ func TestRepository_UpdateNodeState(t *testing.T) {
 	// Load and verify state changed
 	loaded, err := repo.LoadGraph("test-app")
 	require.NoError(t, err)
-	
+
 	loadedNode, exists := loaded.GetNode("n1")
 	assert.True(t, exists)
 	assert.Equal(t, graph.NodeStateRunning, loadedNode.State)
@@ -200,7 +200,7 @@ func TestRepository_UpdateNodeState_NodeNotFound(t *testing.T) {
 
 	db, err := NewSQLiteConnection(tmpFile.Name())
 	require.NoError(t, err)
-	
+
 	err = AutoMigrate(db)
 	require.NoError(t, err)
 
@@ -224,7 +224,7 @@ func TestRepository_CreateGraphRun(t *testing.T) {
 
 	db, err := NewSQLiteConnection(tmpFile.Name())
 	require.NoError(t, err)
-	
+
 	err = AutoMigrate(db)
 	require.NoError(t, err)
 
@@ -239,7 +239,7 @@ func TestRepository_CreateGraphRun(t *testing.T) {
 	run, err := repo.CreateGraphRun("test-app", 1)
 	require.NoError(t, err)
 	require.NotNil(t, run)
-	
+
 	assert.Equal(t, 1, run.Version)
 	assert.Equal(t, "pending", run.Status)
 }
@@ -251,7 +251,7 @@ func TestRepository_GetGraphRuns(t *testing.T) {
 
 	db, err := NewSQLiteConnection(tmpFile.Name())
 	require.NoError(t, err)
-	
+
 	err = AutoMigrate(db)
 	require.NoError(t, err)
 
@@ -265,7 +265,7 @@ func TestRepository_GetGraphRuns(t *testing.T) {
 	// Create multiple runs
 	_, err = repo.CreateGraphRun("test-app", 1)
 	require.NoError(t, err)
-	
+
 	_, err = repo.CreateGraphRun("test-app", 2)
 	require.NoError(t, err)
 
@@ -282,7 +282,7 @@ func TestRepository_UpdateGraphRun(t *testing.T) {
 
 	db, err := NewSQLiteConnection(tmpFile.Name())
 	require.NoError(t, err)
-	
+
 	err = AutoMigrate(db)
 	require.NoError(t, err)
 
@@ -313,7 +313,7 @@ func TestRepository_NodeToModel_WithProperties(t *testing.T) {
 
 	db, err := NewSQLiteConnection(tmpFile.Name())
 	require.NoError(t, err)
-	
+
 	err = AutoMigrate(db)
 	require.NoError(t, err)
 

@@ -7,11 +7,11 @@ import (
 
 // MockObserver implements GraphObserver for testing
 type MockObserver struct {
-	stateChanges   []StateChange
-	nodeUpdates    []string
-	edgeAdditions  []string
-	graphUpdates   int
-	mu             sync.Mutex
+	stateChanges  []StateChange
+	nodeUpdates   []string
+	edgeAdditions []string
+	graphUpdates  int
+	mu            sync.Mutex
 }
 
 type StateChange struct {
@@ -208,7 +208,7 @@ func TestObserverNotifications_GraphUpdated(t *testing.T) {
 
 	edge := &Edge{
 		ID:         "edge-1",
-		FromNodeID: "node-1",  // Workflow creates spec
+		FromNodeID: "node-1", // Workflow creates spec
 		ToNodeID:   "node-2",
 		Type:       EdgeTypeCreates,
 	}

@@ -57,13 +57,13 @@ type JSONEdge struct {
 
 // JSONGraph represents a graph in JSON export format
 type JSONGraph struct {
-	ID        string      `json:"id"`
-	AppName   string      `json:"app_name"`
-	Version   *int        `json:"version,omitempty"`
-	Nodes     []JSONNode  `json:"nodes"`
-	Edges     []JSONEdge  `json:"edges"`
-	CreatedAt *string     `json:"created_at,omitempty"`
-	UpdatedAt *string     `json:"updated_at,omitempty"`
+	ID        string     `json:"id"`
+	AppName   string     `json:"app_name"`
+	Version   *int       `json:"version,omitempty"`
+	Nodes     []JSONNode `json:"nodes"`
+	Edges     []JSONEdge `json:"edges"`
+	CreatedAt *string    `json:"created_at,omitempty"`
+	UpdatedAt *string    `json:"updated_at,omitempty"`
 }
 
 // ExportGraphJSON exports a graph to JSON format with configurable options
