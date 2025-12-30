@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func createTestGraph() *Graph {
+func createTestGraph(t *testing.T) *Graph {
 	g := NewGraph("test")
 
 	nodes := []*Node{
@@ -20,7 +20,7 @@ func createTestGraph() *Graph {
 	}
 
 	for _, node := range nodes {
-		require.NoError(nil, g.AddNode(node))
+		require.NoError(t, g.AddNode(node))
 	}
 
 	edges := []*Edge{
@@ -32,14 +32,14 @@ func createTestGraph() *Graph {
 	}
 
 	for _, edge := range edges {
-		require.NoError(nil, g.AddEdge(edge))
+		require.NoError(t, g.AddEdge(edge))
 	}
 
 	return g
 }
 
 func TestGraph_TopologicalSort(t *testing.T) {
-	g := createTestGraph()
+	g := createTestGraph(t)
 
 	sorted, err := g.TopologicalSort()
 	require.NoError(t, err)
@@ -103,7 +103,7 @@ func TestGraph_TopologicalSort_SingleNode(t *testing.T) {
 }
 
 func TestGraph_GetDependencies(t *testing.T) {
-	g := createTestGraph()
+	g := createTestGraph(t)
 
 	deps, err := g.GetDependencies("workflow1")
 	require.NoError(t, err)
@@ -123,7 +123,7 @@ func TestGraph_GetDependencies(t *testing.T) {
 }
 
 func TestGraph_GetDependencies_NotFound(t *testing.T) {
-	g := createTestGraph()
+	g := createTestGraph(t)
 
 	_, err := g.GetDependencies("missing")
 	assert.Error(t, err)
@@ -131,7 +131,7 @@ func TestGraph_GetDependencies_NotFound(t *testing.T) {
 }
 
 func TestGraph_GetDependencies_NoDeps(t *testing.T) {
-	g := createTestGraph()
+	g := createTestGraph(t)
 
 	deps, err := g.GetDependencies("spec1")
 	require.NoError(t, err)
@@ -139,7 +139,7 @@ func TestGraph_GetDependencies_NoDeps(t *testing.T) {
 }
 
 func TestGraph_GetDependents(t *testing.T) {
-	g := createTestGraph()
+	g := createTestGraph(t)
 
 	dependents, err := g.GetDependents("spec1")
 	require.NoError(t, err)
@@ -153,7 +153,7 @@ func TestGraph_GetDependents(t *testing.T) {
 }
 
 func TestGraph_GetDependents_NotFound(t *testing.T) {
-	g := createTestGraph()
+	g := createTestGraph(t)
 
 	_, err := g.GetDependents("missing")
 	assert.Error(t, err)
@@ -161,7 +161,7 @@ func TestGraph_GetDependents_NotFound(t *testing.T) {
 }
 
 func TestGraph_GetDependents_NoDependents(t *testing.T) {
-	g := createTestGraph()
+	g := createTestGraph(t)
 
 	dependents, err := g.GetDependents("resource2")
 	require.NoError(t, err)
@@ -169,7 +169,7 @@ func TestGraph_GetDependents_NoDependents(t *testing.T) {
 }
 
 func TestGraph_HasCycle(t *testing.T) {
-	g := createTestGraph()
+	g := createTestGraph(t)
 	assert.False(t, g.HasCycle())
 
 	// Create a cycle: Add an edge that makes spec1 depend on workflow1

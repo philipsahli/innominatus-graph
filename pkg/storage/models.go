@@ -14,9 +14,9 @@ type App struct {
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 
-	Nodes      []NodeModel      `gorm:"foreignKey:AppID;constraint:OnDelete:CASCADE" json:"nodes,omitempty"`
-	Edges      []EdgeModel      `gorm:"foreignKey:AppID;constraint:OnDelete:CASCADE" json:"edges,omitempty"`
-	GraphRuns  []GraphRunModel  `gorm:"foreignKey:AppID;constraint:OnDelete:CASCADE" json:"graph_runs,omitempty"`
+	Nodes     []NodeModel     `gorm:"foreignKey:AppID;constraint:OnDelete:CASCADE" json:"nodes,omitempty"`
+	Edges     []EdgeModel     `gorm:"foreignKey:AppID;constraint:OnDelete:CASCADE" json:"edges,omitempty"`
+	GraphRuns []GraphRunModel `gorm:"foreignKey:AppID;constraint:OnDelete:CASCADE" json:"graph_runs,omitempty"`
 }
 
 type NodeModel struct {
@@ -43,9 +43,9 @@ type EdgeModel struct {
 	Properties  string    `gorm:"type:text;default:'{}'" json:"properties"` // JSON string (text for SQLite compatibility)
 	CreatedAt   time.Time `json:"created_at"`
 
-	App      App         `gorm:"foreignKey:AppID;constraint:OnDelete:CASCADE" json:"-"`
-	FromNode NodeModel   `gorm:"foreignKey:FromNodeID;constraint:OnDelete:CASCADE" json:"-"`
-	ToNode   NodeModel   `gorm:"foreignKey:ToNodeID;constraint:OnDelete:CASCADE" json:"-"`
+	App      App       `gorm:"foreignKey:AppID;constraint:OnDelete:CASCADE" json:"-"`
+	FromNode NodeModel `gorm:"foreignKey:FromNodeID;constraint:OnDelete:CASCADE" json:"-"`
+	ToNode   NodeModel `gorm:"foreignKey:ToNodeID;constraint:OnDelete:CASCADE" json:"-"`
 }
 
 type GraphRunModel struct {

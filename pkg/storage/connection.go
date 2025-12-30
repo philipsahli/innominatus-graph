@@ -16,6 +16,7 @@ const (
 	DatabaseTypeSQLite   DatabaseType = "sqlite"
 )
 
+// Config holds database connection configuration
 type Config struct {
 	Type     DatabaseType // "postgres" or "sqlite"
 	Host     string       // PostgreSQL only
@@ -26,10 +27,27 @@ type Config struct {
 	SSLMode  string       // PostgreSQL only
 }
 
+// validatePostgresConfig validates required PostgreSQL configuration fields
+func validatePostgresConfig(config Config) error {
+	if config.Host == "" {
+		return fmt.Errorf("PostgreSQL host is required")
+	}
+	if config.User == "" {
+		return fmt.Errorf("PostgreSQL user is required")
+	}
+	if config.DBName == "" {
+		return fmt.Errorf("PostgreSQL database name is required")
+	}
+	if config.Port <= 0 || config.Port > 65535 {
+		return fmt.Errorf("PostgreSQL port must be between 1 and 65535")
+	}
+	return nil
+}
+
 // NewConnection creates a database connection based on the configuration type
 func NewConnection(config Config) (*gorm.DB, error) {
 	gormConfig := &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
+		Logger: logger.Default.LogMode(logger.Silent),
 	}
 
 	var db *gorm.DB
@@ -42,6 +60,9 @@ func NewConnection(config Config) (*gorm.DB, error) {
 			return nil, fmt.Errorf("failed to connect to SQLite: %w", err)
 		}
 	case DatabaseTypePostgres:
+		if err := validatePostgresConfig(config); err != nil {
+			return nil, fmt.Errorf("invalid PostgreSQL config: %w", err)
+		}
 		dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=%s",
 			config.Host, config.User, config.Password, config.DBName, config.Port, config.SSLMode)
 		db, err = gorm.Open(postgres.Open(dsn), gormConfig)

@@ -25,7 +25,7 @@ func (o *DemoObserver) OnNodeStateChange(node *graph.Node, oldState, newState gr
 
 func main() {
 	fmt.Println("🚀 Innominatus Graph SDK Demo")
-	fmt.Println("========================================\n")
+	fmt.Println("========================================")
 
 	// Step 1: Create a graph with workflow, steps, and resources
 	fmt.Println("📊 Building graph with workflow → steps → resources...")
@@ -289,7 +289,7 @@ func main() {
 			observer := &DemoObserver{}
 			engine.RegisterObserver(observer)
 
-			fmt.Println("  Starting workflow execution with state change notifications...\n")
+			fmt.Println("  Starting workflow execution with state change notifications...")
 			// Note: This would execute the workflow and trigger observer callbacks
 			// Skipped in demo to avoid complex setup
 		}
@@ -331,7 +331,7 @@ func main() {
 			observer := &DemoObserver{}
 			engine.RegisterObserver(observer)
 
-			fmt.Println("  Starting workflow execution with state change notifications...\n")
+			fmt.Println("  Starting workflow execution with state change notifications...")
 			// Note: This would execute the workflow and trigger observer callbacks
 			// Skipped in demo to avoid complex setup
 		}

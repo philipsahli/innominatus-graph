@@ -11,10 +11,12 @@ import (
 	"gorm.io/gorm"
 )
 
+// Repository handles persistence of graphs to the database
 type Repository struct {
 	db *gorm.DB
 }
 
+// NewRepository creates a new Repository with the given database connection
 func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{db: db}
 }
@@ -34,30 +36,44 @@ func (r *Repository) SaveGraph(appName string, g *graph.Graph) error {
 			}
 		}
 
-		if err := tx.Where("app_id = ?", app.ID).Delete(&EdgeModel{}).Error; err != nil {
-			return fmt.Errorf("failed to delete existing edges: %w", err)
-		}
-		if err := tx.Where("app_id = ?", app.ID).Delete(&NodeModel{}).Error; err != nil {
-			return fmt.Errorf("failed to delete existing nodes: %w", err)
+		// Delete existing edges and nodes
+		edgeDeleteResult := tx.Where("app_id = ?", app.ID).Delete(&EdgeModel{})
+		if edgeDeleteResult.Error != nil {
+			return fmt.Errorf("failed to delete existing edges: %w", edgeDeleteResult.Error)
 		}
 
+		nodeDeleteResult := tx.Where("app_id = ?", app.ID).Delete(&NodeModel{})
+		if nodeDeleteResult.Error != nil {
+			return fmt.Errorf("failed to delete existing nodes: %w", nodeDeleteResult.Error)
+		}
+
+		// Create nodes in batches for better performance
+		nodeModels := make([]NodeModel, 0, len(g.Nodes))
 		for _, node := range g.Nodes {
 			nodeModel, err := r.nodeToModel(node, app.ID)
 			if err != nil {
 				return fmt.Errorf("failed to convert node to model: %w", err)
 			}
-			if err := tx.Create(&nodeModel).Error; err != nil {
-				return fmt.Errorf("failed to save node %s: %w", node.ID, err)
+			nodeModels = append(nodeModels, *nodeModel)
+		}
+		if len(nodeModels) > 0 {
+			if err := tx.CreateInBatches(nodeModels, 100).Error; err != nil {
+				return fmt.Errorf("failed to save nodes: %w", err)
 			}
 		}
 
+		// Create edges in batches for better performance
+		edgeModels := make([]EdgeModel, 0, len(g.Edges))
 		for _, edge := range g.Edges {
 			edgeModel, err := r.edgeToModel(edge, app.ID)
 			if err != nil {
 				return fmt.Errorf("failed to convert edge to model: %w", err)
 			}
-			if err := tx.Create(&edgeModel).Error; err != nil {
-				return fmt.Errorf("failed to save edge %s: %w", edge.ID, err)
+			edgeModels = append(edgeModels, *edgeModel)
+		}
+		if len(edgeModels) > 0 {
+			if err := tx.CreateInBatches(edgeModels, 100).Error; err != nil {
+				return fmt.Errorf("failed to save edges: %w", err)
 			}
 		}
 

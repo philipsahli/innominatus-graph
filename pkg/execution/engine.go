@@ -3,6 +3,7 @@ package execution
 import (
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/philipsahli/innominatus-graph/pkg/storage"
@@ -48,9 +49,10 @@ type ExecutionPlan struct {
 }
 
 type Engine struct {
-	repository storage.RepositoryInterface
-	runner     WorkflowRunner
-	observers  []ExecutionObserver
+	repository  storage.RepositoryInterface
+	runner      WorkflowRunner
+	observersMu sync.RWMutex
+	observers   []ExecutionObserver
 }
 
 type WorkflowRunner interface {
@@ -69,11 +71,15 @@ func NewEngine(repository storage.RepositoryInterface, runner WorkflowRunner) *E
 
 // RegisterObserver registers an observer to receive state change notifications
 func (e *Engine) RegisterObserver(observer ExecutionObserver) {
+	e.observersMu.Lock()
+	defer e.observersMu.Unlock()
 	e.observers = append(e.observers, observer)
 }
 
 // notifyStateChange notifies all observers of a node state change
 func (e *Engine) notifyStateChange(node *graph.Node, oldState, newState graph.NodeState) {
+	e.observersMu.RLock()
+	defer e.observersMu.RUnlock()
 	for _, observer := range e.observers {
 		observer.OnNodeStateChange(node, oldState, newState)
 	}

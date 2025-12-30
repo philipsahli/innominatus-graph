@@ -3,6 +3,7 @@ digraph "demo-app" {
   node [shape=box, style=rounded];
   edge [fontsize=10];
 
+  "configure-monitoring-step" [label="Configure Monitoring\n(step)", fillcolor="#FFE0B2", color="black", style="filled,rounded"];
   "postgres-db" [label="PostgreSQL Database\n(resource)", fillcolor="#C8E6C9", color="black", style="filled,rounded"];
   "k8s-deployment" [label="Kubernetes Deployment\n(resource)", fillcolor="#C8E6C9", color="black", style="filled,rounded"];
   "prometheus-scrape" [label="Prometheus Scrape Config\n(resource)", fillcolor="#C8E6C9", color="black", style="filled,rounded"];
@@ -10,15 +11,14 @@ digraph "demo-app" {
   "deploy-workflow" [label="Deploy Application Workflow\n(workflow)", fillcolor="#FFF9C4", color="black", style="filled,rounded"];
   "provision-infra-step" [label="Provision Infrastructure\n(step)", fillcolor="#FFE0B2", color="black", style="filled,rounded"];
   "deploy-app-step" [label="Deploy Application\n(step)", fillcolor="#FFE0B2", color="black", style="filled,rounded"];
-  "configure-monitoring-step" [label="Configure Monitoring\n(step)", fillcolor="#FFE0B2", color="black", style="filled,rounded"];
 
-  "deploy-workflow" -> "deploy-app-step" [label="contains\nWorkflow contains app deployment step", color="#FBC02D", style="bold"];
-  "provision-infra-step" -> "postgres-db" [label="configures\nStep configures database", color="#E64A19", style="dashed"];
-  "deploy-app-step" -> "k8s-deployment" [label="configures\nStep configures k8s deployment", color="#E64A19", style="dashed"];
-  "configure-monitoring-step" -> "prometheus-scrape" [label="configures\nStep configures prometheus", color="#E64A19", style="dashed"];
-  "deploy-workflow" -> "configure-monitoring-step" [label="contains\nWorkflow contains monitoring config step", color="#FBC02D", style="bold"];
-  "deploy-app-step" -> "provision-infra-step" [label="depends-on\nApp deployment depends on infrastructure", color="#1976D2", style="solid"];
-  "configure-monitoring-step" -> "deploy-app-step" [label="depends-on\nMonitoring depends on app deployment", color="#1976D2", style="solid"];
   "app-spec" -> "deploy-workflow" [label="depends-on\nWorkflow depends on spec", color="#1976D2", style="solid"];
   "deploy-workflow" -> "provision-infra-step" [label="contains\nWorkflow contains infra provisioning step", color="#FBC02D", style="bold"];
+  "deploy-workflow" -> "deploy-app-step" [label="contains\nWorkflow contains app deployment step", color="#FBC02D", style="bold"];
+  "deploy-app-step" -> "k8s-deployment" [label="configures\nStep configures k8s deployment", color="#E64A19", style="dashed"];
+  "deploy-app-step" -> "provision-infra-step" [label="depends-on\nApp deployment depends on infrastructure", color="#1976D2", style="solid"];
+  "deploy-workflow" -> "configure-monitoring-step" [label="contains\nWorkflow contains monitoring config step", color="#FBC02D", style="bold"];
+  "provision-infra-step" -> "postgres-db" [label="configures\nStep configures database", color="#E64A19", style="dashed"];
+  "configure-monitoring-step" -> "prometheus-scrape" [label="configures\nStep configures prometheus", color="#E64A19", style="dashed"];
+  "configure-monitoring-step" -> "deploy-app-step" [label="depends-on\nMonitoring depends on app deployment", color="#1976D2", style="solid"];
 }
