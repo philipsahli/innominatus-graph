@@ -23,13 +23,14 @@ repo.SaveGraph("my-app", g)
 
 ## Features
 
-✅ **High Performance** - Sub-millisecond graph operations for 1000+ nodes
-✅ **Thread-Safe** - Concurrent read/write access with RWMutex
-✅ **Execution Algorithms** - GetReadyNodes, GetParallelLayers, PropagateState
-✅ **Optimized Topology** - O(N+E) topological sort and cycle detection
-✅ **State Management** - Workflow execution states with automatic propagation
-✅ **Persistence** - PostgreSQL and SQLite storage backends
-✅ **Visualization** - Export to Mermaid, DOT, SVG, PNG formats
+- **High Performance** - Sub-millisecond operations, O(N+E) algorithms
+- **Thread-Safe** - Concurrent access with RWMutex protection
+- **Execution** - GetReadyNodes, GetParallelLayers, PropagateState, TopologicalSort
+- **State Management** - 6 node states with automatic failure propagation
+- **Persistence** - PostgreSQL (production) and SQLite (development)
+- **Export** - DOT, SVG, PNG, JSON, Mermaid (flowchart/state/gantt)
+- **Layout** - Hierarchical, Radial, Grid, Force-directed positioning
+- **Observable** - GraphObserver pattern for reactive state changes
 
 ## Performance
 
