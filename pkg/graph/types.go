@@ -68,13 +68,13 @@ type Node struct {
 }
 
 type Edge struct {
-	ID          string            `json:"id"`
-	FromNodeID  string            `json:"from_node_id"`
-	ToNodeID    string            `json:"to_node_id"`
-	Type        EdgeType          `json:"type"`
-	Description string            `json:"description,omitempty"`
+	ID          string                 `json:"id"`
+	FromNodeID  string                 `json:"from_node_id"`
+	ToNodeID    string                 `json:"to_node_id"`
+	Type        EdgeType               `json:"type"`
+	Description string                 `json:"description,omitempty"`
 	Properties  map[string]interface{} `json:"properties,omitempty"`
-	CreatedAt   time.Time         `json:"created_at"`
+	CreatedAt   time.Time              `json:"created_at"`
 }
 
 type Graph struct {
@@ -278,6 +278,17 @@ func (g *Graph) GetNode(id string) (*Node, bool) {
 	return node, exists
 }
 
+// GetNodeState returns the current state of a node (thread-safe)
+func (g *Graph) GetNodeState(id string) (NodeState, bool) {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	node, exists := g.Nodes[id]
+	if !exists {
+		return NodeState(""), false
+	}
+	return node.State, true
+}
+
 func (g *Graph) GetEdge(id string) (*Edge, bool) {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
@@ -381,15 +392,22 @@ func removeEdgeFromList(edges []*Edge, edgeToRemove *Edge) []*Edge {
 
 // UpdateNodeState updates the state of a node and propagates state changes upward
 func (g *Graph) UpdateNodeState(nodeID string, newState NodeState) error {
+	_, err := g.UpdateNodeStateWithOldState(nodeID, newState)
+	return err
+}
+
+// UpdateNodeStateWithOldState updates the state of a node and returns the old state.
+// This method is thread-safe and returns the old state atomically.
+func (g *Graph) UpdateNodeStateWithOldState(nodeID string, newState NodeState) (oldState NodeState, err error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
 	node, exists := g.Nodes[nodeID]
 	if !exists {
-		return fmt.Errorf("node %s does not exist", nodeID)
+		return NodeState(""), fmt.Errorf("node %s does not exist", nodeID)
 	}
 
-	oldState := node.State
+	oldState = node.State
 	node.State = newState
 	now := time.Now()
 	node.UpdatedAt = now
@@ -411,7 +429,7 @@ func (g *Graph) UpdateNodeState(nodeID string, newState NodeState) error {
 	// Propagate state upward if step failed -> workflow failed
 	if node.Type == NodeTypeStep && newState == NodeStateFailed {
 		if err := g.propagateFailureToParent(nodeID); err != nil {
-			return fmt.Errorf("failed to propagate state: %w", err)
+			return oldState, fmt.Errorf("failed to propagate state: %w", err)
 		}
 	}
 
@@ -420,7 +438,7 @@ func (g *Graph) UpdateNodeState(nodeID string, newState NodeState) error {
 		g.updateContainedSteps(nodeID, oldState, newState)
 	}
 
-	return nil
+	return oldState, nil
 }
 
 // propagateFailureToParent propagates step failure to parent workflow

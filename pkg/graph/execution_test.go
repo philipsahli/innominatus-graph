@@ -8,10 +8,10 @@ import (
 // TestGetParallelLayers tests the parallel layers algorithm
 func TestGetParallelLayers(t *testing.T) {
 	tests := []struct {
-		name          string
-		setup         func() *Graph
+		name           string
+		setup          func() *Graph
 		expectedLayers int
-		expectError   bool
+		expectError    bool
 	}{
 		{
 			name: "simple linear chain",
@@ -133,11 +133,11 @@ func TestGetParallelLayers(t *testing.T) {
 // TestGetReadyNodes tests the ready node detection algorithm
 func TestGetReadyNodes(t *testing.T) {
 	tests := []struct {
-		name          string
-		setup         func() *Graph
-		waitingStates []NodeState
+		name            string
+		setup           func() *Graph
+		waitingStates   []NodeState
 		completedStates []NodeState
-		expectedReady []string
+		expectedReady   []string
 	}{
 		{
 			name: "simple ready detection",
@@ -152,9 +152,9 @@ func TestGetReadyNodes(t *testing.T) {
 				g.AddEdge(&Edge{ID: "B-C", FromNodeID: "B", ToNodeID: "C", Type: EdgeTypeDependsOn})
 				return g
 			},
-			waitingStates: []NodeState{NodeStateWaiting, NodeStatePending},
+			waitingStates:   []NodeState{NodeStateWaiting, NodeStatePending},
 			completedStates: []NodeState{NodeStateSucceeded, NodeStateSkipped},
-			expectedReady: []string{"B"},
+			expectedReady:   []string{"B"},
 		},
 		{
 			name: "parallel ready nodes",
@@ -176,9 +176,9 @@ func TestGetReadyNodes(t *testing.T) {
 				g.AddEdge(&Edge{ID: "C-D", FromNodeID: "C", ToNodeID: "D", Type: EdgeTypeDependsOn})
 				return g
 			},
-			waitingStates: []NodeState{NodeStateWaiting},
+			waitingStates:   []NodeState{NodeStateWaiting},
 			completedStates: []NodeState{NodeStateSucceeded},
-			expectedReady: []string{"B", "C"},
+			expectedReady:   []string{"B", "C"},
 		},
 		{
 			name: "no dependencies ready immediately",
@@ -190,9 +190,9 @@ func TestGetReadyNodes(t *testing.T) {
 				g.AddNode(&Node{ID: "C", Type: NodeTypeStep, Name: "Step C", State: NodeStateWaiting})
 				return g
 			},
-			waitingStates: []NodeState{NodeStateWaiting},
+			waitingStates:   []NodeState{NodeStateWaiting},
 			completedStates: []NodeState{NodeStateSucceeded},
-			expectedReady: []string{"A", "B", "C"},
+			expectedReady:   []string{"A", "B", "C"},
 		},
 		{
 			name: "skipped dependencies count as satisfied",
@@ -205,9 +205,9 @@ func TestGetReadyNodes(t *testing.T) {
 				g.AddEdge(&Edge{ID: "A-B", FromNodeID: "A", ToNodeID: "B", Type: EdgeTypeDependsOn})
 				return g
 			},
-			waitingStates: []NodeState{NodeStateWaiting},
+			waitingStates:   []NodeState{NodeStateWaiting},
 			completedStates: []NodeState{NodeStateSucceeded, NodeStateSkipped},
-			expectedReady: []string{"B"},
+			expectedReady:   []string{"B"},
 		},
 		{
 			name: "no ready nodes when dependencies not satisfied",
@@ -220,9 +220,9 @@ func TestGetReadyNodes(t *testing.T) {
 				g.AddEdge(&Edge{ID: "A-B", FromNodeID: "A", ToNodeID: "B", Type: EdgeTypeDependsOn})
 				return g
 			},
-			waitingStates: []NodeState{NodeStateWaiting},
+			waitingStates:   []NodeState{NodeStateWaiting},
 			completedStates: []NodeState{NodeStateSucceeded},
-			expectedReady: []string{"A"},
+			expectedReady:   []string{"A"},
 		},
 	}
 
@@ -253,13 +253,13 @@ func TestGetReadyNodes(t *testing.T) {
 // TestPropagateState tests the BFS state propagation algorithm
 func TestPropagateState(t *testing.T) {
 	tests := []struct {
-		name            string
-		setup           func() *Graph
-		startNodeID     string
-		targetState     NodeState
-		affectedStates  []NodeState
-		expectedStates  map[string]NodeState
-		expectError     bool
+		name           string
+		setup          func() *Graph
+		startNodeID    string
+		targetState    NodeState
+		affectedStates []NodeState
+		expectedStates map[string]NodeState
+		expectError    bool
 	}{
 		{
 			name: "propagate failure down linear chain",
@@ -274,8 +274,8 @@ func TestPropagateState(t *testing.T) {
 				g.AddEdge(&Edge{ID: "B-C", FromNodeID: "B", ToNodeID: "C", Type: EdgeTypeDependsOn})
 				return g
 			},
-			startNodeID: "A",
-			targetState: NodeStateFailed,
+			startNodeID:    "A",
+			targetState:    NodeStateFailed,
 			affectedStates: []NodeState{NodeStateWaiting, NodeStatePending},
 			expectedStates: map[string]NodeState{
 				"A": NodeStateFailed,
@@ -303,8 +303,8 @@ func TestPropagateState(t *testing.T) {
 				g.AddEdge(&Edge{ID: "C-D", FromNodeID: "C", ToNodeID: "D", Type: EdgeTypeDependsOn})
 				return g
 			},
-			startNodeID: "A",
-			targetState: NodeStateFailed,
+			startNodeID:    "A",
+			targetState:    NodeStateFailed,
 			affectedStates: []NodeState{NodeStateWaiting},
 			expectedStates: map[string]NodeState{
 				"A": NodeStateFailed,
@@ -327,13 +327,13 @@ func TestPropagateState(t *testing.T) {
 				g.AddEdge(&Edge{ID: "B-C", FromNodeID: "B", ToNodeID: "C", Type: EdgeTypeDependsOn})
 				return g
 			},
-			startNodeID: "A",
-			targetState: NodeStateFailed,
+			startNodeID:    "A",
+			targetState:    NodeStateFailed,
 			affectedStates: []NodeState{NodeStateWaiting, NodeStatePending},
 			expectedStates: map[string]NodeState{
 				"A": NodeStateFailed,
 				"B": NodeStateRunning, // Should NOT change
-				"C": NodeStateWaiting,  // Should NOT change (B blocks propagation)
+				"C": NodeStateWaiting, // Should NOT change (B blocks propagation)
 			},
 			expectError: false,
 		},
@@ -344,11 +344,11 @@ func TestPropagateState(t *testing.T) {
 				g.AddNode(&Node{ID: "A", Type: NodeTypeStep, Name: "Step A", State: NodeStateWaiting})
 				return g
 			},
-			startNodeID: "non-existent",
-			targetState: NodeStateFailed,
+			startNodeID:    "non-existent",
+			targetState:    NodeStateFailed,
 			affectedStates: []NodeState{NodeStateWaiting},
 			expectedStates: map[string]NodeState{},
-			expectError: true,
+			expectError:    true,
 		},
 	}
 
@@ -439,11 +439,11 @@ func TestConcurrentGraphAccess(t *testing.T) {
 			defer wg.Done()
 			for j := 0; j < iterations; j++ {
 				nodeID := string(rune('A' + (j % 10)))
-				node, exists := g.GetNode(nodeID)
+				currentState, exists := g.GetNodeState(nodeID)
 				if exists {
 					// Cycle through states
 					newState := NodeStateWaiting
-					switch node.State {
+					switch currentState {
 					case NodeStateWaiting:
 						newState = NodeStateRunning
 					case NodeStateRunning:

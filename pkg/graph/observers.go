@@ -102,15 +102,9 @@ func (og *ObservableGraph) notifyGraphUpdated() {
 
 // UpdateNodeState overrides the base implementation to add notifications
 func (og *ObservableGraph) UpdateNodeState(nodeID string, newState NodeState) error {
-	node, exists := og.GetNode(nodeID)
-	if !exists {
-		return og.Graph.UpdateNodeState(nodeID, newState)
-	}
-
-	oldState := node.State
-
-	// Update state using base implementation
-	if err := og.Graph.UpdateNodeState(nodeID, newState); err != nil {
+	// Use atomic method to get old state and update in one operation (thread-safe)
+	oldState, err := og.Graph.UpdateNodeStateWithOldState(nodeID, newState)
+	if err != nil {
 		return err
 	}
 
