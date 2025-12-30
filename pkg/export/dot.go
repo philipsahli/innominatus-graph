@@ -11,18 +11,24 @@ import (
 	"github.com/goccy/go-graphviz"
 )
 
+// Format specifies the output format for graph export
 type Format string
 
 const (
+	// FormatDOT exports as GraphViz DOT format
 	FormatDOT Format = "dot"
+	// FormatSVG exports as SVG vector graphics
 	FormatSVG Format = "svg"
+	// FormatPNG exports as PNG raster image
 	FormatPNG Format = "png"
 )
 
+// Exporter handles graph visualization export to various formats
 type Exporter struct {
 	graphviz *graphviz.Graphviz
 }
 
+// NewExporter creates a new Exporter instance
 func NewExporter() *Exporter {
 	g, _ := graphviz.New(context.Background())
 	return &Exporter{
