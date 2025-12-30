@@ -517,7 +517,7 @@ func TestRepository_NodeToModel_NilProperties(t *testing.T) {
 	loadedNode, exists := loaded.GetNode("n1")
 	assert.True(t, exists)
 	// nil properties should be loaded as nil or empty map
-	assert.True(t, loadedNode.Properties == nil || len(loadedNode.Properties) == 0)
+	assert.True(t, len(loadedNode.Properties) == 0)
 }
 
 func TestRepository_NodeToModel_EmptyProperties(t *testing.T) {
@@ -551,7 +551,7 @@ func TestRepository_NodeToModel_EmptyProperties(t *testing.T) {
 
 	loadedNode, exists := loaded.GetNode("n1")
 	assert.True(t, exists)
-	assert.True(t, loadedNode.Properties == nil || len(loadedNode.Properties) == 0)
+	assert.True(t, len(loadedNode.Properties) == 0)
 }
 
 func TestRepository_EdgeToModel_NilProperties(t *testing.T) {
@@ -591,7 +591,7 @@ func TestRepository_EdgeToModel_NilProperties(t *testing.T) {
 
 	loadedEdge, exists := loaded.Edges["e1"]
 	assert.True(t, exists)
-	assert.True(t, loadedEdge.Properties == nil || len(loadedEdge.Properties) == 0)
+	assert.True(t, len(loadedEdge.Properties) == 0)
 }
 
 func TestRepository_ConcurrentLoadOperations(t *testing.T) {

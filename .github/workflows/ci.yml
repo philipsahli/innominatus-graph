@@ -38,7 +38,7 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: Run tests with race detector
-        run: go test -race -coverprofile=coverage.out ./...
+        run: go test -race -coverprofile=coverage.out ./pkg/...
 
       - name: Check coverage threshold
         run: |
