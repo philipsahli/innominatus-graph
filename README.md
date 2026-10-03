@@ -1,5 +1,17 @@
 # Innominatus Graph SDK
 
+> [!WARNING]
+> **This repository is no longer maintained and will be archived.**
+> The graph SDK now lives inside the innominatus repository at
+> [`internal/graph/sdk/`](https://github.com/philipsahli/innominatus/tree/main/internal/graph/sdk),
+> where it has kept evolving (for example structured logging and a
+> `graph/interface.go` that this repository lacks). That copy is the source of
+> truth; changes made here will not be picked up.
+>
+> Because it lives under `internal/`, it is no longer offered as a standalone
+> Go library. Pin `github.com/philipsahli/innominatus-graph` at its last
+> commit if you still depend on it.
+
 [![CI](https://github.com/philipsahli/innominatus-graph/actions/workflows/ci.yml/badge.svg)](https://github.com/philipsahli/innominatus-graph/actions/workflows/ci.yml)
 
 Go SDK for IDP workflows as directed acyclic graphs with state management and persistence.
